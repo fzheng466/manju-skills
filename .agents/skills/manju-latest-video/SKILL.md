@@ -1,6 +1,6 @@
 ---
 name: manju-latest-video
-description: "用户说「使用我们最新的版本的skill」「最新版本视频skill」「最新视频优化skill」「用最新 skill 做漫剧/短剧/H3/Seedance」时必须加载。路由到 D:\\最新版本视频优化skill 下的 skill-H3 或 skill-SD，第一步强制渠道面谈。"
+description: "用户说「使用我们最新的版本的skill」「最新版本视频skill」「最新视频优化skill」「用最新 skill 做漫剧/短剧/H3/Seedance」时必须加载。路由到仓库 skill-H3 或 skill-SD（本机安装目录 D:\\最新版本视频优化skill），第一步强制渠道面谈。"
 ---
 
 # 最新版本视频优化 skill（路由）

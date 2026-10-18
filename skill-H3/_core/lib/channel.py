@@ -43,11 +43,21 @@ def file_hash(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def _strictest_int(a: int | None, b: int | None, how: str = "min") -> int | None:
-    nums = [x for x in (a, b) if isinstance(x, int)]
+def _strictest_int(a: Any, b: Any, how: str = "min") -> int | None:
+    nums = [int(x) for x in (a, b) if isinstance(x, (int, float)) and not isinstance(x, bool)]
     if not nums:
         return None
     return min(nums) if how == "min" else max(nums)
+
+
+def _as_set(value: Any) -> set[str]:
+    if isinstance(value, dict) and "value" in value:
+        value = value["value"]
+    if isinstance(value, (list, set, tuple)):
+        return {str(x) for x in value}
+    if isinstance(value, str):
+        return {value}
+    return set()
 
 
 def merge_effective(
@@ -65,30 +75,43 @@ def merge_effective(
     b_ref = baseline.get("reference_inputs") or {}
     c_ref = (caps.get("reference_inputs") or {}).get("value") or {}
     images = _strictest_int(b_ref.get("image"), c_ref.get("image"), "min")
+    videos = _strictest_int(b_ref.get("video"), c_ref.get("video"), "min")
+    audios = _strictest_int(b_ref.get("audio"), c_ref.get("audio"), "min")
+    totals = _strictest_int(b_ref.get("total"), c_ref.get("total"), "min")
+    if images == 0:
+        videos = 0 if videos is None else min(videos, 0)
+        audios = 0 if audios is None else min(audios, 0)
 
-    b_ar = set(baseline.get("aspect_ratios") or [])
-    c_ar = set((caps.get("aspect_ratios") or {}).get("value") or caps.get("aspect_ratios") or b_ar)
-    if isinstance(c_ar, list):
-        c_ar = set(c_ar)
-    aspects = sorted(b_ar & c_ar) if c_ar else sorted(b_ar)
+    b_ar = _as_set(baseline.get("aspect_ratios"))
+    c_ar = _as_set(caps.get("aspect_ratios")) or b_ar
+    aspects = sorted(b_ar & c_ar) if (b_ar and c_ar) else sorted(b_ar or c_ar)
     proj_ar = (project or {}).get("aspect_ratio")
-    if proj_ar and aspects and proj_ar not in aspects:
+    conflict = None
+    if proj_ar and proj_ar not in aspects:
         conflict = {"type": "aspect_ratio", "project": proj_ar, "channel": aspects}
-
-    else:
-        conflict = None
 
     audio = (caps.get("audio_output") or {}).get("value") or baseline.get("audio_output") or "unknown"
 
+    b_modes = set(baseline.get("modes") or [])
+    c_modes = _as_set(caps.get("modes")) or b_modes
+    modes = sorted(b_modes & c_modes) if c_modes else sorted(b_modes)
+    if (images == 0) or (totals == 0):
+        modes = [m for m in modes if m not in {"Ref2VA", "reference_set", "reference_image", "multimodal_reference"}]
+
     return {
-        "duration_seconds": {"min": min_s, "max": max_s, "integer_only": bool(c_dur.get("integer_only") or b_dur.get("integer_only"))},
+        "duration_seconds": {
+            "min": min_s,
+            "max": max_s,
+            "integer_only": bool(c_dur.get("integer_only") or b_dur.get("integer_only")),
+        },
         "aspect_ratios": aspects,
         "reference_inputs": {
             "image": images,
-            "video": _strictest_int(b_ref.get("video"), c_ref.get("video"), "min"),
-            "audio": _strictest_int(b_ref.get("audio"), c_ref.get("audio"), "min"),
+            "video": videos,
+            "audio": audios,
+            "total": totals,
         },
         "audio_output": audio,
-        "modes": sorted(set(baseline.get("modes") or []) & set((caps.get("modes") or {}).get("value") or baseline.get("modes") or [])),
+        "modes": modes,
         "conflict": conflict,
     }

@@ -340,9 +340,23 @@ def validate_project(data: dict[str, Any], root: Path) -> list[str]:
     return errors
 
 
+def _prompt_text_for_job(root: Path, job: dict[str, Any]) -> str:
+    raw = job.get("compiled_prompt_path")
+    if not isinstance(raw, str) or not raw:
+        return ""
+    path = Path(raw)
+    if not path.is_absolute():
+        path = root / path
+    try:
+        return path.read_text(encoding="utf-8")
+    except OSError:
+        return ""
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("project_json", type=Path, help="path to project.json")
+    parser.add_argument("--lock", type=Path, default=None, help="effective-capability.lock.json")
     args = parser.parse_args()
     try:
         data = json.loads(args.project_json.read_text(encoding="utf-8"))
@@ -352,7 +366,25 @@ def main() -> int:
     if not isinstance(data, dict):
         print("ERROR: project JSON root must be an object", file=sys.stderr)
         return 2
-    errors = validate_project(data, args.project_json.resolve().parent)
+    root = args.project_json.resolve().parent
+    errors = validate_project(data, root)
+    lock_path = args.lock or root / "effective-capability.lock.json"
+    if lock_path.is_file():
+        skill_root = Path(__file__).resolve().parents[1]
+        sys.path.insert(0, str(skill_root.parent))
+        sys.path.insert(0, str(skill_root))
+        try:
+            from core.lib.guards_channel import check
+        except ImportError:
+            from _core.lib.guards_channel import check  # type: ignore
+        lock = json.loads(lock_path.read_text(encoding="utf-8"))
+        if (lock.get("effective") or {}).get("conflict"):
+            errors.append(f"G-CH: aspect/capability conflict {lock['effective']['conflict']}")
+        for job in data.get("jobs") or []:
+            if isinstance(job, dict):
+                errors.extend(check(_prompt_text_for_job(root, job), job, lock))
+    elif data.get("stage") == "submit":
+        errors.append("submit requires effective-capability.lock.json (run channel interview first)")
     if errors:
         for error in errors:
             print(f"FAIL: {error}")
