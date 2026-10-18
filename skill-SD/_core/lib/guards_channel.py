@@ -169,7 +169,19 @@ def apply_lock_checks(
     *,
     project_hash: str | None = None,
 ) -> list[str]:
+    errors, _warns = apply_lock_checks_with_warnings(project, lock, prompt_for_job, project_hash=project_hash)
+    return errors
+
+
+def apply_lock_checks_with_warnings(
+    project: dict[str, Any],
+    lock: dict[str, Any],
+    prompt_for_job: Callable[[dict[str, Any]], str],
+    *,
+    project_hash: str | None = None,
+) -> tuple[list[str], list[str]]:
     errors: list[str] = []
+    warns: list[str] = []
     if lock.get("model_profile") and project.get("model_profile") and lock["model_profile"] != project["model_profile"]:
         errors.append("G-CH8: lock model_profile does not match project; regenerate lock")
     sources = lock.get("sources") or {}
@@ -182,5 +194,7 @@ def apply_lock_checks(
             errors.append(f"G-CH: aspect/capability conflict {conflict}")
     for job in project.get("jobs") or []:
         if isinstance(job, dict):
-            errors.extend(check(prompt_for_job(job), job, lock))
-    return errors
+            job_errors, job_warns = check_with_warnings(prompt_for_job(job), job, lock)
+            errors.extend(job_errors)
+            warns.extend(job_warns)
+    return errors, warns

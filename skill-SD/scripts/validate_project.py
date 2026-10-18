@@ -406,19 +406,27 @@ def main() -> int:
         sys.path.insert(0, str(skill_root))
         try:
             from core.lib.channel import file_hash
-            from core.lib.guards_channel import apply_lock_checks
+            from core.lib.guards_channel import apply_lock_checks_with_warnings
         except ImportError:
             from _core.lib.channel import file_hash  # type: ignore
-            from _core.lib.guards_channel import apply_lock_checks  # type: ignore
+            from _core.lib.guards_channel import apply_lock_checks_with_warnings  # type: ignore
         lock = json.loads(lock_path.read_text(encoding="utf-8"))
-        errors.extend(
-            apply_lock_checks(
-                data,
-                lock,
-                lambda job: _prompt_text_for_job(root, job),
-                project_hash=file_hash(args.project_json),
-            )
+        lock_errors, lock_warns = apply_lock_checks_with_warnings(
+            data,
+            lock,
+            lambda job: _prompt_text_for_job(root, job),
+            project_hash=file_hash(args.project_json),
         )
+        errors.extend(lock_errors)
+        if lock_warns:
+            record = root / "07_qa" / "gch9-warnings.json"
+            record.parent.mkdir(parents=True, exist_ok=True)
+            record.write_text(
+                json.dumps({"warnings": lock_warns, "lock": str(lock_path)}, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
+            for w in lock_warns:
+                print(f"WARN: {w}")
     elif data.get("stage") == "submit":
         errors.append("submit requires effective-capability.lock.json (run channel interview first)")
     if errors:

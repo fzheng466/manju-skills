@@ -79,15 +79,16 @@ def check_job(job: dict[str, Any], prompt_text: str = "") -> list[str]:
             if framing:
                 scales.append(framing)
             table = PORTRAIT_MIN if job.get("aspect_ratio") == "9:16" else LANDSCAPE_MIN
+            matched_key = next((key for key in sorted(table, key=len, reverse=True) if key in framing), None)
             for pos in beat.get("positions") or []:
                 if not isinstance(pos, dict):
                     continue
                 h = pos.get("screen_height_percent")
-                if not _number(h):
+                if not _number(h) or not matched_key:
                     continue
-                for key, lo in table.items():
-                    if key in framing and h < lo - 10:
-                        errors.append(f"SHOT-AR: {framing} height {h}% too small for {job.get('aspect_ratio')}")
+                lo = table[matched_key]
+                if h < lo - 10:
+                    errors.append(f"SHOT-AR: {framing} height {h}% too small for {job.get('aspect_ratio')} ({matched_key} min {lo})")
             action = str(beat.get("visible_action") or "")
             if action and "然后又" in action and "收势" not in action:
                 errors.append("SHOT-ACT: one beat packs two primary actions; split")

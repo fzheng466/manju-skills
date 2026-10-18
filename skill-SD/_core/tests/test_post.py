@@ -58,6 +58,10 @@ class PostTests(unittest.TestCase):
         self.assertIn("001", text)
         self.assertTrue(any("J2" in w for w in warns))
         self.assertRegex(text, r"\d{2}:\d{2}:\d{2}:\d{2}")
+        self.assertTrue(any("no archived video path" in w for w in warns))
+        self.project["jobs"][0]["output_path"] = "media/j1.mp4"
+        text2, _ = edl_text(self.project, "L")
+        self.assertIn("FROM CLIP NAME: media/j1.mp4", text2)
 
     def test_audio_plan_reconstruct(self):
         plan = audio_plan(self.project)
@@ -106,6 +110,23 @@ class ShotQualityTightenTests(unittest.TestCase):
         self.assertTrue(any("SHOT-AR" in e for e in err))
         self.assertTrue(any("trigger" in e for e in err))
         self.assertTrue(any("suppression" in e or "压回" in e for e in err))
+        closeup = {
+            "aspect_ratio": "9:16",
+            "shots": [
+                {
+                    "beats": [
+                        {
+                            "expression": "眉心收紧",
+                            "visible_action": "抬头",
+                            "camera": {"framing": "中近景"},
+                            "positions": [{"actor_id": "A", "screen_height_percent": 40}],
+                        }
+                    ]
+                }
+            ],
+        }
+        err2 = check_job(closeup, "9:16竖屏")
+        self.assertTrue(any("SHOT-AR" in e and "中近景" in e for e in err2))
 
 
 if __name__ == "__main__":

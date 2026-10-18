@@ -118,12 +118,18 @@ def edl_text(project: dict[str, Any], track: str | None = None) -> tuple[str, li
         dur = float(job.get("duration_seconds") or 0)
         if start > prev_end + 0.05:
             warns.append(f"gap before job {job.get('id')}: {prev_end:.3f}->{start:.3f}")
-        src = "AX"
-        path = ""
+        path = str(job.get("output_path") or job.get("media_path") or "")
         for asset in project.get("assets") or []:
-            if isinstance(asset, dict) and asset.get("generated_by_job_id") == job.get("id"):
-                path = str(asset.get("path") or "")
+            if not isinstance(asset, dict):
+                continue
+            if asset.get("generated_by_job_id") == job.get("id") and asset.get("kind") == "video":
+                path = str(asset.get("path") or path)
                 break
+            if asset.get("asset_id") == job.get("output_asset_id"):
+                path = str(asset.get("path") or path)
+                break
+        if not path:
+            warns.append(f"job {job.get('id')} has no archived video path")
         rec_in = _ts(start, srt=False)
         rec_out = _ts(start + dur, srt=False)
         src_in = _ts(0, srt=False)
