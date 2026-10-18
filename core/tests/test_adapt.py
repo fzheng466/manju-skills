@@ -288,6 +288,7 @@ def test_shot_rejects_vague_acting_and_stacked_moves():
                 "performance_plan": {
                     "objective": "压住对方",
                     "concealment": "害怕",
+                    "suppression": "把惊讶压回嘴唇闭合",
                     "trigger": "刀被按住",
                     "baseline": "唇线闭合",
                     "micro_expression_sequence": ["手指先停", "上眼睑轻抬"],
@@ -387,8 +388,10 @@ def test_transpile_uses_character_name_not_speaker_id():
     )
     assert "沈砚以" in named["prompt"]
     assert "shen以" not in named["prompt"]
-    missing = compile_prompt(job, profile="seedance-2.5", characters=[], lexicon=[])
-    assert any("G-TR4" in e for e in missing["errors"])
+    missing = compile_prompt(job, profile="seedance-2.5", characters=[], lexicon=None)
+    assert any(e.startswith("G-TR") for e in missing["errors"])
+    missing_id = compile_prompt(job, profile="seedance-2.5", characters=[], lexicon=[("x", "y")])
+    assert any("G-TR4" in e for e in missing_id["errors"])
     styled = compile_prompt(
         {**job, "shots": [{**job["shots"][0], "camera": "3D半写实国漫CG PBR材质"}]},
         profile="seedance-2.5",
@@ -423,6 +426,11 @@ def test_identity_negation_but_clause_still_flags():
         character_id="SHEN",
     )
     assert any("ID-MIX" in e for e in mixed)
+
+
+def test_weapon_silhouette_only_fails():
+    err = check_text("weapon", "16:9横屏 左侧主图 剪影 柄", "16:9")
+    assert any("ASSET-WPN" in e for e in err)
 
 
 import unittest as _unittest

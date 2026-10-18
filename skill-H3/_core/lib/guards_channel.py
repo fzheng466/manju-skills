@@ -136,6 +136,16 @@ def check(prompt_text: str, job: dict[str, Any], lock: dict[str, Any]) -> list[s
     max_chars = lock.get("prompt_max_chars") or eff.get("prompt_max_chars")
     if isinstance(max_chars, int) and prompt_text and len(prompt_text) > max_chars:
         errors.append(f"G-CH7: prompt {len(prompt_text)} chars > max {max_chars}")
+    cap_status = eff.get("capability_status") if isinstance(eff.get("capability_status"), dict) else {}
+    if cap_status:
+        from .channel import gate_capabilities
+
+        g_err, g_warn = gate_capabilities(
+            {k: {"status": v} if isinstance(v, str) else v for k, v in cap_status.items()}
+        )
+        errors.extend(g_err)
+        for w in g_warn:
+            print(w)
     audio = eff.get("audio_output")
     if audio == "none":
         if SILENT_AUDIO_RE.search(prompt_text or ""):

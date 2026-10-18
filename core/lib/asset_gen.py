@@ -147,7 +147,7 @@ def _call_adapter(channel: dict[str, Any], payload: dict[str, Any]) -> dict[str,
         capture_output=True,
         text=True,
         timeout=float(img.get("timeout_seconds") or 120),
-        env=os.environ.copy(),
+        env={**env, **{k: os.environ[k] for k in (img.get("env_passthrough") or []) if k in os.environ}},
     )
     if proc.returncode != 0:
         raise RuntimeError(_scrub(proc.stderr or proc.stdout or f"adapter exit {proc.returncode}"))

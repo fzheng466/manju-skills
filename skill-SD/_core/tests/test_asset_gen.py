@@ -99,6 +99,18 @@ class AssetGenTests(unittest.TestCase):
         )
         self.assertEqual(asset_gen.cmd_next(self.project, channel_id="local", budget=5, confirm=True), 1)
 
+    def test_resolve_charged_adds_spent(self):
+        asset_gen.save_queue(
+            "p1",
+            {
+                "project_id": "p1",
+                "spent": 0,
+                "items": [{"asset_id": "CHAR1", "status": "unknown", "charged": 1.0}],
+            },
+        )
+        self.assertEqual(asset_gen.cmd_resolve(self.project, "CHAR1", 1), 0)
+        self.assertEqual(asset_gen.load_queue("p1")["spent"], 1.0)
+
 
 if __name__ == "__main__":
     unittest.main()

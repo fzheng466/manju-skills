@@ -82,10 +82,15 @@ def check_text(kind: str, text: str, aspect: str = "16:9", *, sex: str | None = 
             errors.append("ID-SEX: character board must declare 男性/女性 (or pass --sex)")
 
     if kind == "weapon":
-        if not _has_any(body, ARTIFACT_SIG):
-            errors.append("ASSET-WPN: xianxia/prop board needs silhouette + forge/spirit signature (xianxia-hero-artifacts)")
-        if not _has_any(body, HOLD_POINT):
-            errors.append("ASSET-WPN: missing 握持/柄点")
+        score = 0
+        if _has_any(body, ("剪影", "轮廓")):
+            score += 1
+        if re.search(r"炼|锻|铸|淬|材", body):
+            score += 1
+        if re.search(r"握持.{0,10}(手|指|掌)|单手|双手|握持点", body):
+            score += 1
+        if score < 2:
+            errors.append("ASSET-WPN: need at least two of 剪影/轮廓, 炼制/材质来源, 握持方式")
         if aspect == "16:9" and "左侧" not in body and "主图" not in body:
             errors.append("ASSET-WPN: 16:9 weapon board should be 左主图 + 右细节窗")
         if aspect == "9:16" and "上" not in body and "主图" not in body:

@@ -75,10 +75,17 @@ def _speaker_name(line: dict[str, Any], cast: dict[str, str] | None = None) -> s
 def load_lexicon(path: Path | None = None) -> list[tuple[str, str]]:
     if path is None:
         here = Path(__file__).resolve()
-        for cand in (
-            here.parents[2] / "skill-SD" / "references" / "aesthetic" / "lexicon-dual-track.csv",
+        here = Path(__file__).resolve()
+        candidates = [
             here.parents[1] / "references" / "aesthetic" / "lexicon-dual-track.csv",
-        ):
+            here.parents[2] / "skill-SD" / "references" / "aesthetic" / "lexicon-dual-track.csv",
+            here.parents[3] / "skill-SD" / "references" / "aesthetic" / "lexicon-dual-track.csv",
+            here.parents[2] / "references" / "aesthetic" / "lexicon-dual-track.csv",
+        ]
+        for parent in here.parents:
+            candidates.append(parent / "skill-SD" / "references" / "aesthetic" / "lexicon-dual-track.csv")
+            candidates.append(parent / "references" / "aesthetic" / "lexicon-dual-track.csv")
+        for cand in candidates:
             if cand.is_file():
                 path = cand
                 break
@@ -204,6 +211,9 @@ def compile_prompt(
     applied: list[str] = []
     if lexicon is None:
         lexicon = load_lexicon()
+    if not lexicon and str(profile).startswith("seedance"):
+        errors = ["G-TR5: Seedance lexicon not found; refuse silent pass-through"]
+        return {"prompt": prompt, "mode": mapped, "aspect": aspect, "errors": errors, "lexicon_applied": []}
     if lexicon:
         prompt, applied = apply_lexicon(prompt, lexicon)
     errors = check_transpile(job, prompt, cast=cast)

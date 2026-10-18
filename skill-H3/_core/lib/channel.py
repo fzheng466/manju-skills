@@ -43,6 +43,65 @@ def file_hash(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def capability_status(cap: dict[str, Any] | None, now: datetime | None = None) -> str:
+    cap = cap or {}
+    st = str(cap.get("status") or "unknown")
+    lv, ttl = cap.get("last_verified"), cap.get("ttl_days")
+    now = now or datetime.now(timezone.utc)
+    if st in {"verified", "declared"} and lv and ttl:
+        try:
+            verified = datetime.fromisoformat(str(lv).replace("Z", "+00:00"))
+            if verified.tzinfo is None:
+                verified = verified.replace(tzinfo=timezone.utc)
+            if (now - verified).days > int(ttl):
+                return "expired"
+        except (TypeError, ValueError):
+            return st
+    return st
+
+
+def gate_capabilities(caps: dict[str, Any], required: set[str] | None = None) -> tuple[list[str], list[str]]:
+    errors: list[str] = []
+    warns: list[str] = []
+    required = required or {"duration_seconds", "aspect_ratios", "reference_inputs", "audio_output"}
+    for key in required:
+        raw = caps.get(key) if isinstance(caps, dict) else None
+        if isinstance(raw, dict) and "status" in raw:
+            st = capability_status(raw)
+        elif isinstance(raw, dict):
+            st = capability_status(raw)
+        else:
+            st = "unknown" if raw in (None, "unknown") else "declared"
+        if st in {"failed", "unknown"}:
+            errors.append(f"G-CH9: {key} is {st}")
+        elif st in {"declared", "expired"}:
+            warns.append(f"G-CH9: {key} {st} — first submit is a probe")
+    return errors, warns
+
+
+def record_capability(channel_id: str, model_key: str, cap: str, result: str, observed: dict[str, Any] | None = None) -> Path:
+    profile = load_channel(channel_id)
+    if not profile:
+        raise FileNotFoundError(f"channel {channel_id} not in {channels_dir()}")
+    models = profile.setdefault("models", {})
+    model = models.setdefault(model_key, {"capabilities": {}})
+    caps = model.setdefault("capabilities", {})
+    entry = caps.get(cap) if isinstance(caps.get(cap), dict) else {}
+    today = datetime.now(timezone.utc).date().isoformat()
+    if result == "ok":
+        entry["status"] = "verified"
+        entry["last_verified"] = today
+    else:
+        entry["status"] = "failed"
+        if observed:
+            if "value" in entry and isinstance(entry["value"], dict):
+                entry["value"].update(observed)
+            else:
+                entry["observed"] = observed
+    caps[cap] = entry
+    return save_channel(profile)
+
+
 def project_tracks(project: dict[str, Any] | None) -> list[dict[str, str]]:
     if not project:
         return [{"track_id": "L", "aspect": str(project.get("aspect_ratio") if project else "16:9")}]
@@ -151,4 +210,8 @@ def merge_effective(
         "audio_output": audio,
         "modes": modes,
         "conflict": conflict,
+        "capability_status": {
+            key: capability_status(caps.get(key) if isinstance(caps.get(key), dict) else {"status": "declared"})
+            for key in ("duration_seconds", "aspect_ratios", "reference_inputs", "audio_output", "modes")
+        },
     }

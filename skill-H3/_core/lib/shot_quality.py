@@ -40,6 +40,9 @@ def check_job(job: dict[str, Any], prompt_text: str = "") -> list[str]:
     errors: list[str] = []
     errors.extend(check_prompt(prompt_text, job))
     scales: list[str] = []
+    PORTRAIT_MIN = {"全身": 75, "中景": 50, "近景": 70, "远景": 20}
+    LANDSCAPE_MIN = {"全身": 65, "中景": 35, "近景": 55, "远景": 10}
+    REGION = ("眉", "眼", "睑", "嘴", "唇", "颌", "呼吸", "肩", "喉")
     for si, shot in enumerate(job.get("shots") or []):
         if not isinstance(shot, dict):
             continue
@@ -51,6 +54,12 @@ def check_job(job: dict[str, Any], prompt_text: str = "") -> list[str]:
             for field in ("trigger", "baseline", "end_expression"):
                 if not plan.get(field):
                     errors.append(f"SHOT-PERF: shot[{si}] performance_plan.{field} required")
+            for field in ("trigger", "end_expression"):
+                v = str(plan.get(field) or "")
+                if v and (len(v) < 4 or (field == "end_expression" and not any(r in v for r in REGION))):
+                    errors.append(f"SHOT-PERF: shot[{si}] {field} must be a concrete visible event/region")
+            if plan.get("concealment") and not plan.get("suppression"):
+                errors.append(f"SHOT-PERF: shot[{si}] concealment set but no 压回 (suppression) cue")
             hold = plan.get("hold_seconds")
             if _number(hold) and hold < 0.15:
                 errors.append(f"SHOT-PERF: shot[{si}] hold_seconds too short to read the reaction")
@@ -69,6 +78,16 @@ def check_job(job: dict[str, Any], prompt_text: str = "") -> list[str]:
             framing = str(beat.get("viewpoint") or (cam_b or {}).get("framing") or beat.get("camera") or "")
             if framing:
                 scales.append(framing)
+            table = PORTRAIT_MIN if job.get("aspect_ratio") == "9:16" else LANDSCAPE_MIN
+            for pos in beat.get("positions") or []:
+                if not isinstance(pos, dict):
+                    continue
+                h = pos.get("screen_height_percent")
+                if not _number(h):
+                    continue
+                for key, lo in table.items():
+                    if key in framing and h < lo - 10:
+                        errors.append(f"SHOT-AR: {framing} height {h}% too small for {job.get('aspect_ratio')}")
             action = str(beat.get("visible_action") or "")
             if action and "然后又" in action and "收势" not in action:
                 errors.append("SHOT-ACT: one beat packs two primary actions; split")
