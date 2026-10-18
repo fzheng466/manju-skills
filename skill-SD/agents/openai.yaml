@@ -1,0 +1,4 @@
+interface:
+  display_name: "Seedance 漫剧制作"
+  short_description: "16:9 横屏漫剧流程；先锁定 Seedance 版本"
+  default_prompt: "Use $seedance-manju to start a 16:9 comic-drama workflow; ask me to choose Seedance 2.0, Seedance 2.5, or MiniMax H3 if I have not selected a pipeline. Run only the selected skill."

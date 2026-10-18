@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Effective capability lock for one compile",
+  "type": "object",
+  "required": ["channel_id", "model_profile", "effective", "sources"],
+  "properties": {
+    "channel_id": { "type": "string" },
+    "model_profile": { "type": "string" },
+    "computed_at": { "type": "string" },
+    "effective": { "type": "object" },
+    "adaptation_preview": { "type": "object" },
+    "sources": {
+      "type": "object",
+      "properties": {
+        "baseline_hash": { "type": "string" },
+        "channel_hash": { "type": "string" },
+        "project_hash": { "type": "string" }
+      }
+    }
+  }
+}

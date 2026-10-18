@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Model baseline (official or documented caps)",
+  "type": "object",
+  "required": ["model_profile", "source", "checked_at"],
+  "properties": {
+    "model_profile": { "type": "string" },
+    "source": { "type": "string" },
+    "checked_at": { "type": "string" },
+    "duration_seconds": { "type": "object" },
+    "aspect_ratios": { "type": "array", "items": { "type": "string" } },
+    "modes": { "type": "array", "items": { "type": "string" } },
+    "reference_inputs": { "type": "object" },
+    "frame_anchors": { "type": "object" },
+    "audio_output": { "type": "string" },
+    "prompt_max_chars": { "type": "integer" },
+    "notes": { "type": "string" }
+  }
+}

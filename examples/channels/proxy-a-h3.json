@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0",
+  "channel_id": "proxy-a-h3",
+  "display_name": "反代A-H3",
+  "provider_kind": "reverse_proxy",
+  "notes": "示例：10秒、2张参考图、无音频。复制到 %USERPROFILE%\\.manju\\channels\\ 后改名使用。",
+  "created_at": "2026-10-18T00:00:00+08:00",
+  "updated_at": "2026-10-18T00:00:00+08:00",
+  "models": {
+    "minimax-h3": {
+      "model_id_on_channel": "h3-base",
+      "capabilities": {
+        "duration_seconds": {
+          "value": { "min": 4, "max": 10, "integer_only": false },
+          "status": "declared",
+          "ttl_days": 30
+        },
+        "aspect_ratios": { "value": ["16:9"], "status": "declared", "ttl_days": 90 },
+        "modes": { "value": ["T2VA", "I2VA", "Ref2VA"], "status": "declared", "ttl_days": 30 },
+        "reference_inputs": {
+          "value": { "image": 2, "video": 0, "audio": 0, "total": 2 },
+          "status": "declared",
+          "ttl_days": 30
+        },
+        "frame_anchors": { "value": { "first": true, "last": false }, "status": "declared", "ttl_days": 30 },
+        "audio_output": { "value": "none", "status": "declared", "ttl_days": 60 }
+      }
+    }
+  }
+}

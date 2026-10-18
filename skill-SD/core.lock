@@ -1,0 +1,28 @@
+{
+  "core_version": "1.0.0",
+  "files": {
+    "VERSION": "59854984853104df5c353e2f681a15fc7924742f9a2e468c29af248dce45ce03",
+    "lib/adapt.py": "d8a6a2152fe5874f5e7b2b19d601cc0edf0a8f111f77ecbec30eaf6dbe48c24c",
+    "lib/channel.py": "fc5b1cf17f389a5ca0d9e83dd3fd457cd3b000fd39e27dd931c2ab21b2496769",
+    "lib/guards_channel.py": "76f3e59a1ded89a73d7c7e8c80d79e01287e7c2e4210d428e614b99758bb0f1b",
+    "schemas/channel-profile.schema.json": "e76e95f4d36106d392d5508c68d7a66ed403e33b68aced1117f67e848c3a40ea",
+    "schemas/effective-capability.schema.json": "753cad407ec73c21134ec431a17358b4afbbe06fbc9a80143dd8cd0d93cb0858",
+    "schemas/handoff.schema.json": "806c68c54cf9d30246074258e21fef3d60fc865c6ea7677f1f6f01a9681df83e",
+    "schemas/model-baseline.schema.json": "73de0be78060289c5d1a31c1dc83c75de84e38a985ca70fc1fe31b8b643d482c",
+    "tests/test_adapt.py": "bec35ea7571e6ab49a9bb0a5af07bbcb5202c53571cabdf7c0d8d94810b7d6bf",
+    "references/assets/anime-3d-asset-lexicon.md": "a842a2cdfe741b10ff2a21038d499a6650fd30b6e1bdaa21dc8573d6c4a6bd3b",
+    "references/channel/adaptive-rules.md": "a3e0dccdd997814447c9ae3e26ef92b5c25deeb5dd03a6639509fa5334c88215",
+    "references/channel/guards-channel.md": "f9db2f6815e3b3986d34eb868fa08eba82a5c2ebab37131cf7cdfeb2ce90d589",
+    "references/channel/interview.md": "6d337c362ad4e34ea6a3eaf37a8493aeb72296234cca1fc886e035d73e6b6c64",
+    "references/failure-modes/failure-modes.md": "bbe48555f874e1fd3d19ea2bda60af339d59c89a77a94fe605c4cec6e5842168",
+    "references/story/SKILL.md": "a8b53a53cbd343910fb378948ea3e97bda7f9e325ada8dc29dbb7b72908ccb6b",
+    "references/story/references/adaptation.md": "28e91c55d806a1d8bc75f9a16083024c8421e2f73862a1b5c567e2a6eac97967",
+    "references/story/references/dialogue-and-performance.md": "32400ef51ad88fc400f23980f28e83e5bee66d7ee639085782dadb052ac28fe2",
+    "references/story/references/episode-writing.md": "b7d6e4cc18704e659e5db26e94f258966123d56f471c0d4a2294e23ddbb8ce89",
+    "references/story/references/project-contract.md": "b3300c9b591d67a88f84d1a44ababadf5485ef87cc52788bed7ad44aabdcaeef",
+    "references/story/references/research-basis.md": "a53813480c336a37e227920310f2fdb05e8889912292257f6a023bed139e119c",
+    "references/story/references/script-review.md": "f90d69e1684b50fd75e660e40609c9267262d357cb6ea5ba150ba2b8fd241231",
+    "references/story/references/series-development.md": "1c5b317d24086f90e835fd4dbef1749aa21a779f35ab724a65439e8f81228e6f",
+    "references/story/references/shot-handoff.md": "c95024793f0bcbaccc3a67aa3a1912dc6af90715f374f4cc193a566c389f3a04"
+  }
+}

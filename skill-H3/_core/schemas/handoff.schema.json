@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Script-to-director handoff (schema 1.2 aligned)",
+  "type": "object",
+  "required": ["schema_version", "episode_id", "shots"],
+  "properties": {
+    "schema_version": { "const": "1.2-handoff" },
+    "episode_id": { "type": "string" },
+    "language": { "type": "string" },
+    "target_duration_seconds": { "type": "number" },
+    "shots": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["shot_id", "beats"],
+        "properties": {
+          "shot_id": { "type": "string" },
+          "start_seconds": { "type": ["number", "null"] },
+          "end_seconds": { "type": ["number", "null"] },
+          "beats": { "type": "array" },
+          "positions": { "type": "array" },
+          "entrance_order": { "type": "array" },
+          "utterances": { "type": "array" },
+          "voice_profile_id": { "type": ["string", "null"] },
+          "genre_card_id": { "type": ["string", "null"] },
+          "pending_director": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    }
+  }
+}

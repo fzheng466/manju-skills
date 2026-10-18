@@ -1,0 +1,4 @@
+interface:
+  display_name: "MiniMax H3 漫剧制作"
+  short_description: "16:9 横屏漫剧的 MiniMax H3 独立制作流程"
+  default_prompt: "Use $minimax-h3-manju for a 16:9 comic-drama project after MiniMax H3 has been selected."

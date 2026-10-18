@@ -1,0 +1,62 @@
+{
+  "schema_version": "1.0",
+  "project_id": "seedance-demo-one-shot",
+  "title": "Seedance 2.5 单镜草稿示例",
+  "pipeline": "seedance",
+  "model_profile": "seedance-2.5",
+  "aspect_ratio": "16:9",
+  "stage": "draft",
+  "generation_authorization": {
+    "authorized_by_user": false,
+    "job_ids": [],
+    "evidence": "",
+    "budget_limit": null
+  },
+  "capability": null,
+  "utterances": [
+    {
+      "utterance_id": "U001",
+      "speaker_id": "shen-yan",
+      "kind": "in_scene_dialogue",
+      "language": "Chinese",
+      "tone": "压低音量，语速平稳，句尾收紧",
+      "text": "阵眼还在，别碰那盏灯。"
+    }
+  ],
+  "assets": [],
+  "jobs": [
+    {
+      "id": "JOB001",
+      "model_profile": "seedance-2.5",
+      "mode": "text_only",
+      "duration_seconds": 5,
+      "aspect_ratio": "16:9",
+      "episode_start_seconds": 0,
+      "inputs": [],
+      "prompt_version": "0.1-draft",
+      "compiled_prompt_path": "seedance-prompt.md",
+      "shots": [
+        {
+          "id": "SH001",
+          "start_seconds": 0,
+          "end_seconds": 5,
+          "purpose": "让观众知道阵眼仍在运转且灯不可触碰",
+          "main_action": "沈砚抬手拦住即将伸向铜灯的同伴",
+          "camera": "中近景，机位位于铜灯外侧，稳定观察两人的手部距离",
+          "start_state": "沈砚站在石室左侧，右手垂在身侧；同伴的手停在铜灯前",
+          "end_state": "沈砚右手挡在同伴手前，两人仍隔着铜灯，没有触碰",
+          "continuity_from": null,
+          "dialogue": [
+            {
+              "utterance_id": "U001",
+              "text": "阵眼还在，别碰那盏灯。",
+              "speaker_id": "shen-yan",
+              "tone": "压低音量，语速平稳，句尾收紧"
+            }
+          ],
+          "sound": ["潮湿石室的低微滴水声", "衣袖随抬手轻擦的布料声"]
+        }
+      ]
+    }
+  ]
+}

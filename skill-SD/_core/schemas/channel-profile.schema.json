@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Manju channel profile",
+  "type": "object",
+  "required": ["schema_version", "channel_id", "display_name", "models"],
+  "properties": {
+    "schema_version": { "type": "string" },
+    "channel_id": { "type": "string" },
+    "display_name": { "type": "string" },
+    "provider_kind": { "type": "string" },
+    "notes": { "type": "string" },
+    "created_at": { "type": "string" },
+    "updated_at": { "type": "string" },
+    "models": { "type": "object", "additionalProperties": { "type": "object" } },
+    "history_ref": { "type": "string" }
+  }
+}

@@ -1,0 +1,7 @@
+semantic_id,h3_phrase,sd_phrase,sd_version,evidence_case_id,status
+CAM_PUSH_SLOW,摄影机以缓慢速度沿中轴推近并于指定秒停止于胸像,镜头缓慢推近停在胸口以上,2.0,none,hypothesis
+VIS_HIDDEN,完整位于柱后脸手衣角均不进入构图,画面里只有A；B藏在柱后完全看不见,both,none,hypothesis
+PERF_MICRO,眉心先收紧→呼吸停半拍→下颌压低,眉头一紧屏住呼吸下巴微微压低,both,none,hypothesis
+STYLE_BASE,3D半写实国漫CG PBR材质,3D国风动画电影质感柔和体积光细腻布料与金属反光,both,none,hypothesis
+FX_SOURCE,源头→聚集→成形→传播→命中→消散,剑身先亮起青光沿剑刃汇到剑尖斩出弧形剑气击中后碎成光点,both,none,hypothesis
+DIALOGUE,11项对白控制,3个可听项+2个可见项且原句逐字,both,none,hypothesis
