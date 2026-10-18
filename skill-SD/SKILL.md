@@ -11,7 +11,15 @@ metadata:
 
 写资产图或 Seedance 提示词之前：读 `_core/references/channel/interview.md` 与 `_core/references/assets/aspect-tracks.md`。第一问锁定 16:9 / 9:16 / 两条都要。再选渠道。一条线渠道不支持该画幅时只暂停该线。生成 lock：`python -m core.lib.lock --project project.json --channel <id> --baseline models/seedance-2.0.baseline.json --out effective-capability.lock.json`（2.5 换对应 baseline）。提交前：`python scripts/validate_project.py project.json --lock effective-capability.lock.json`。
 
-从 H3 复用同一素材时：中性导演谱才是输入；映射表 `references/transpile/field-map.md`；风格层 `references/aesthetic/`。禁止把 `<d>` `(Sx)` `T2VA` 带进 Seedance 正文。
+从 H3 复用同一素材时：中性导演谱才是输入，不要硬翻 H3 成品文本。
+
+```text
+python -m core.lib.transpile --project project.json --job-id JOB001 --profile seedance-2.5 --out sd-prompt.md
+python -m core.lib.asset_prompt --kind character --aspect 16:9 --file asset-hero.md
+python -m core.lib.shot_quality --job project.json --job-id JOB001 --prompt sd-prompt.md
+```
+
+映射表 `references/transpile/field-map.md`；风格层 `references/aesthetic/`。禁止把 `<d>` `(Sx)` `T2VA` 带进 Seedance 正文。
 
 动漫/3D 资产：`_core/references/assets/anime-3d-asset-lexicon.md`。
 

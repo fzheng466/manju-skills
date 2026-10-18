@@ -133,6 +133,9 @@ def check(prompt_text: str, job: dict[str, Any], lock: dict[str, Any]) -> list[s
     mode = job.get("mode")
     if modes and mode and mode not in modes:
         errors.append(f"G-CH4: mode {mode} not in {sorted(modes)}")
+    max_chars = lock.get("prompt_max_chars") or eff.get("prompt_max_chars")
+    if isinstance(max_chars, int) and prompt_text and len(prompt_text) > max_chars:
+        errors.append(f"G-CH7: prompt {len(prompt_text)} chars > max {max_chars}")
     audio = eff.get("audio_output")
     if audio == "none":
         if SILENT_AUDIO_RE.search(prompt_text or ""):

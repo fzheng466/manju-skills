@@ -33,3 +33,12 @@
 | 安全区 | 左右边缘 | 上下约 8% 留给字幕/UI |
 
 剧情 beats、台词、出场顺序两条线共用。构图字段放 `beats[].framing.L` / `beats[].framing.P`。副线构图必须单独审，不能套主线。
+
+## 生产命令
+
+```text
+python -m core.lib.asset_prompt --kind character|weapon|scene --aspect 16:9|9:16 --file <prompt.md>
+python -m core.lib.shot_quality --job project.json --job-id <id> --prompt compiled.md
+python -m core.lib.adapt --job project.json --lock effective-capability.lock.json
+python -m core.lib.transpile --project project.json --job-id <id> --profile seedance-2.5 --out sd.md
+```

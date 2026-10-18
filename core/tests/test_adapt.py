@@ -1,6 +1,9 @@
 from core.lib.adapt import preview
+from core.lib.asset_prompt import check_text
 from core.lib.channel import merge_effective
 from core.lib.guards_channel import check, _max_time_in_text
+from core.lib.shot_quality import check_job, check_prompt
+from core.lib.transpile import compile_prompt, reconstruct_dialogue
 
 
 def test_split_10s_channel():
@@ -142,6 +145,142 @@ def test_gch5_silent_channel_blocks_h3_sound_fields():
     prompt = "overall_soundscape: 石室滴水\nnon_diegetic_music: 低弦\n<d>[Chinese] 别碰那盏灯。</d>"
     err = check(prompt, {"duration_seconds": 8, "mode": "T2VA"}, lock)
     assert any(e.startswith("G-CH5") for e in err)
+
+
+def test_split_on_dialogue_end_not_mid_line():
+    job = {
+        "duration_seconds": 18,
+        "shots": [
+            {
+                "id": "S1",
+                "start_seconds": 0,
+                "end_seconds": 18,
+                "beats": [
+                    {"start_seconds": 0, "end_seconds": 6, "action_phase": "起手", "cut_reason": "none"},
+                    {"start_seconds": 6, "end_seconds": 10, "action_phase": "收势", "cut_reason": "none"},
+                    {"start_seconds": 10, "end_seconds": 18, "action_phase": "反应", "cut_reason": "none"},
+                ],
+                "dialogue": [
+                    {"utterance_id": "U1", "text": "阵眼还在。", "start_seconds": 7.0, "end_seconds": 11.0},
+                ],
+            }
+        ],
+    }
+    p = preview(job, {"duration_seconds": {"min": 4, "max": 10}})
+    assert p["blocked"] is False
+    assert all(s.get("fallback") == "beats" for s in p["splits"])
+    edges = [s["end"] for s in p["splits"][:-1]]
+    assert 11.0 in edges
+    assert not any(7.0 < t < 11.0 for t in edges)
+
+
+def test_split_blocks_when_only_cut_is_inside_line():
+    job = {
+        "duration_seconds": 18,
+        "shots": [
+            {
+                "beats": [
+                    {"start_seconds": 0, "end_seconds": 8, "visible_action": "开口"},
+                    {"start_seconds": 8, "end_seconds": 18, "visible_action": "说完"},
+                ],
+                "dialogue": [
+                    {"text": "一句很长的台词", "start_seconds": 1, "end_seconds": 17},
+                ],
+            }
+        ],
+    }
+    p = preview(job, {"duration_seconds": {"min": 4, "max": 10}})
+    assert p["blocked"] is True
+    assert p["rule"] == "R-DUR-03"
+
+
+def test_asset_character_requires_empty_hands_and_structure():
+    bad = "生成一张人物图，仙气飘飘，高级感。"
+    err = check_text("character", bad, "16:9")
+    assert any("ASSET" in e for e in err)
+    good = (
+        "16:9横屏角色四视图设定板。左侧超大正面胸像，右侧正面全身、45°侧面全身、背面全身。"
+        "双手空置并离开身体。战甲：胸甲上下两片、肩甲四片、裙甲四片、胫甲。"
+        "结构计数：肩甲4、裙甲4。"
+    )
+    assert check_text("character", good, "16:9") == []
+
+
+def test_asset_weapon_xianxia_needs_silhouette():
+    err = check_text("weapon", "16:9横屏一把发光仙剑，很华丽。", "16:9")
+    assert any("ASSET-WPN" in e or "ASSET-VAGUE" in e for e in err)
+    good = (
+        "16:9横屏武器资产板，左侧主图完整展示三叉戟剪影，右侧两个细节窗。"
+        "握持点在中段缠柄。炼制：寒铁夹层嵌青玉导灵槽，灵力从戟心沿主刃到叉尖。"
+    )
+    assert check_text("weapon", good, "16:9") == []
+
+
+def test_shot_rejects_vague_acting_and_stacked_moves():
+    err = check_prompt("眼神复杂，气场强，镜头推轨然后横移环绕", {"aspect_ratio": "16:9"})
+    assert any("SHOT-PERF" in e for e in err)
+    assert any("SHOT-CAM" in e for e in err)
+    job = {
+        "aspect_ratio": "9:16",
+        "shots": [
+            {
+                "performance_plan": {
+                    "objective": "压住对方",
+                    "concealment": "害怕",
+                    "trigger": "刀被按住",
+                    "baseline": "唇线闭合",
+                    "micro_expression_sequence": ["手指先停", "上眼睑轻抬"],
+                    "body_breath": "吸气压回",
+                    "listener_reaction": "对方肩一沉",
+                    "hold_seconds": 0.4,
+                    "end_expression": "眉心仍紧嘴唇闭合",
+                },
+                "camera_plan": {"movement": "locked", "movement_trigger": "none"},
+                "beats": [
+                    {
+                        "expression": "眉心收紧后上眼睑轻抬",
+                        "visible_action": "按住刀脊",
+                        "camera": {"framing": "近景"},
+                    }
+                ],
+            }
+        ],
+    }
+    assert check_job(job, "9:16竖屏，两人前后纵深") == []
+
+
+def test_transpile_keeps_frozen_line_and_strips_h3():
+    job = {
+        "mode": "T2VA",
+        "aspect_ratio": "16:9",
+        "duration_seconds": 8,
+        "identification_points": ["左眉浅疤", "青玉护心镜"],
+        "shots": [
+            {
+                "id": "S1",
+                "start_seconds": 0,
+                "end_seconds": 8,
+                "purpose": "对峙",
+                "camera": "中近景稳定",
+                "dialogue": [
+                    {
+                        "speaker_id": "沈砚",
+                        "text": "阵眼还在，别碰那盏灯。",
+                        "tone": "压低",
+                        "delivery": {"volume": "低", "pace": "慢", "timbre": "压喉"},
+                        "pre_line_action": "视线锁灯",
+                        "listener_reaction": "林晚手指停在灯侧",
+                    }
+                ],
+            }
+        ],
+    }
+    result = compile_prompt(job, profile="seedance-2.5")
+    assert "阵眼还在，别碰那盏灯。" in result["prompt"]
+    assert "<d>" not in result["prompt"]
+    assert "T2VA" not in result["prompt"]
+    assert reconstruct_dialogue(job) == "阵眼还在，别碰那盏灯。"
+    assert result["errors"] == []
 
 
 def test_gch8_model_mismatch():

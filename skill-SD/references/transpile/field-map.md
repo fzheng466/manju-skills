@@ -1,6 +1,6 @@
 # H3 → Seedance 字段映射
 
-不要把 H3 成品当输入源。中性导演谱才是真相源。H3 文本只做语义对照。
+不要把 H3 成品当输入源。中性导演谱才是真相源。H3 文本只做语义对照。执行：`python -m core.lib.transpile --project project.json --job-id JOB001 --profile seedance-2.5 --out sd.md`。守卫 G-TR1 台词回拼、G-TR2 禁 H3 语法、G-TR3 识别点复述。
 
 图例：机械 / 模板+润色 / 必须重写。
 

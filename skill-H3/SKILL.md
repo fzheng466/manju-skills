@@ -21,7 +21,16 @@ metadata:
 5. 提交前必须：`python scripts/validate_project.py project.json --lock effective-capability.lock.json`
 6. 大纲/原创/改编先读 `_core/references/story/SKILL.md`。
 
-动漫/3D 战甲、仙袍、头饰流苏资产图读取 `_core/references/assets/anime-3d-asset-lexicon.md`，不要只用真人缂丝/盘金绣词。失败模式 `_core/references/failure-modes/failure-modes.md`。剧本层交接若有 JSON，对齐 `_core/schemas/handoff.schema.json`。
+动漫/3D 战甲、仙袍、头饰流苏资产图读取 `_core/references/assets/anime-3d-asset-lexicon.md`，不要只用真人缂丝/盘金绣词。生图前跑：
+
+```text
+python -m core.lib.asset_prompt --kind character --aspect 16:9 --file asset-hero.md
+python -m core.lib.asset_prompt --kind weapon --aspect 16:9 --file artifact.md
+python -m core.lib.shot_quality --job project.json --job-id JOB001 --prompt compiled.md
+python -m core.lib.adapt --job project.json --lock effective-capability.lock.json --job-id JOB001
+```
+
+失败模式 `_core/references/failure-modes/failure-modes.md`。剧本层交接若有 JSON，对齐 `_core/schemas/handoff.schema.json`。
 
 ## AIKSK 本地提示词编译模块
 

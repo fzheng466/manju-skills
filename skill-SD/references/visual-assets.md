@@ -1,6 +1,6 @@
 # 视觉圣经、角色板与场景资产
 
-多风格资产的选择、短模板和环境调用见 [多风格视觉资产提示词模块](visual-style-and-asset-modules.md)。先选风格，再写题材身份和资产结构；不把国漫、BJD 或任何渲染技术写成默认前缀。
+多风格资产的选择、短模板和环境调用见 [多风格视觉资产提示词模块](visual-style-and-asset-modules.md)。先选风格，再写题材身份和资产结构；不把国漫、BJD 或任何渲染技术写成默认前缀。战甲、仙袍、头饰流苏另读 `_core/references/assets/anime-3d-asset-lexicon.md`。生图前：`python -m core.lib.asset_prompt --kind character|weapon|scene --aspect <track> --file <prompt.md>`。
 
 ## 1. 项目风格圣经
 
