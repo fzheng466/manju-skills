@@ -68,10 +68,18 @@ def check_text(kind: str, text: str, aspect: str = "16:9", *, sex: str | None = 
             errors.append("ASSET-CHAR: tassel board must count strands, insertion point, hang length")
         if _has_any(body, ("战甲", "肩甲", "流苏", "飘带")) and not COUNT_RE.search(body):
             errors.append("ASSET-CHAR: 结构计数 must include a number (e.g. 肩甲4片 / 流苏3股 / 飘带2条)")
-        if sex:
+        inferred = sex
+        if not inferred:
+            if re.search(r"(女性|女主|女将|女修|female)", body, re.I):
+                inferred = "female"
+            elif re.search(r"(男性|男主|男将|男修|male)", body, re.I):
+                inferred = "male"
+        if inferred:
             from .identity import check_prompt_for_sex
 
-            errors.extend(check_prompt_for_sex(body, sex, character_id=character_id, kind="character"))
+            errors.extend(check_prompt_for_sex(body, inferred, character_id=character_id, kind="character"))
+        elif kind == "character":
+            errors.append("ID-SEX: character board must declare 男性/女性 (or pass --sex)")
 
     if kind == "weapon":
         if not _has_any(body, ARTIFACT_SIG):

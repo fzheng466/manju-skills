@@ -210,7 +210,7 @@ def test_asset_character_requires_empty_hands_and_structure():
     assert check_text("character", armor, "16:9") == []
     assert check_text("character", robe, "16:9") == []
     good = (
-        "16:9横屏角色四视图设定板。左侧超大正面胸像，右侧正面全身、45°侧面全身、背面全身。"
+        "16:9横屏男性角色四视图设定板。左侧超大正面胸像，右侧正面全身、45°侧面全身、背面全身。"
         "双手空置并离开身体。战甲：胸甲上下两片、肩甲4片、裙甲4片、胫甲。"
     )
     assert check_text("character", good, "16:9") == []
@@ -261,6 +261,20 @@ def test_identity_blocks_female_wardrobe_on_male():
     assert any("ID-MIX" in e and "COS_BAD" in e for e in perr)
     orphan = {"stage": "draft", "characters": [{"character_id": "SHEN_YAN", "presentation_sex": "male"}], "assets": [{"asset_id": "WPN2", "kind": "weapon", "prompt": "剑"}]}
     assert any("ID-OWN" in e for e in check_project(orphan))
+    earring = check_prompt_for_sex(male_ok + "左耳一枚银耳钉。", "male", character_id="SHEN")
+    assert not any("耳钉" in e for e in earring)
+    slit = check_prompt_for_sex(male_ok + "外袍下摆高开衩便于跨步。", "male", character_id="SHEN")
+    assert not any("高开衩" in e or "ID-MIX" in e for e in slit)
+    denied = check_prompt_for_sex(male_ok + "不穿抹胸。", "male", character_id="SHEN")
+    assert denied == []
+    general = check_prompt_for_sex(
+        "16:9横屏女将四视图。正面全身、45°侧面全身、背面全身。双手空置。女将，胸甲上下两片。",
+        "female",
+        character_id="JIANG",
+    )
+    assert not any("ID-SEX" in e for e in general)
+    costume = {"stage": "draft", "characters": [{"character_id": "SHEN_YAN", "presentation_sex": "male"}], "assets": [{"asset_id": "COS1", "kind": "costume", "prompt": "外袍"}]}
+    assert any("ID-OWN" in e for e in check_project(costume))
 
 
 def test_shot_rejects_vague_acting_and_stacked_moves():

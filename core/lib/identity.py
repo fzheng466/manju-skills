@@ -15,8 +15,8 @@ from typing import Any
 SEXES = {"male", "female"}
 
 FEMALE_WARDROBE = (
-    "抹胸", "齐胸", "襦裙", "凤冠", "步摇", "钗", "簪花", "耳坠", "耳钉",
-    "项链垂胸", "细腰封", "高开衩", "超短裙", "文胸", "胸罩", "吊带裙",
+    "抹胸", "齐胸", "襦裙", "凤冠", "步摇", "钗", "簪花", "耳坠",
+    "项链垂胸", "细腰封", "超短裙", "文胸", "胸罩", "吊带裙",
     "高跟鞋", "细跟", "丝袜", "连裤袜", "腿环", "足环",
 )
 MALE_WARDROBE = (
@@ -43,7 +43,7 @@ def _text(*parts: Any) -> str:
     return "\n".join(chunks)
 
 
-NEG_PREFIX = ("无", "没有", "不含", "不出现", "禁止", "勿")
+NEG_PREFIX = ("无", "没有", "不含", "不出现", "禁止", "勿", "不穿", "不戴", "不是", "非")
 
 
 def _hits(text: str, needles: tuple[str, ...]) -> list[str]:
@@ -147,8 +147,8 @@ def check_prompt_for_sex(text: str, sex: str, *, character_id: str = "?", kind: 
         errors.append(f"ID-SEX: {character_id} missing presentation_sex")
         return errors
     body = text or ""
-    if not re.search(r"(男性|女性|male|female|男角色|女角色|男主|女主)", body, re.I):
-        errors.append(f"ID-SEX: {character_id} prompt must declare 男性/女性 (or male/female) in the identity line")
+    if not re.search(r"(男性|女性|male|female|男角色|女角色|男主|女主|男将|女将|男修|女修|男子|女子)", body, re.I):
+        errors.append(f"ID-SEX: {character_id} prompt must declare 男性/女性/男将/女将 (or male/female) in the identity line")
     if sex_n == "male":
         bad = _hits(body, FEMALE_WARDROBE) + _hits(body, FEMALE_BODY)
         if bad:
@@ -179,7 +179,7 @@ def check_asset_binding(asset: dict[str, Any], characters: dict[str, dict[str, A
         return errors
     if kind in {"costume", "wardrobe", "prop", "weapon", "artifact", "image"} and asset.get("asset_role") in {None, "wardrobe", "prop", "weapon"}:
         if not owner:
-            if kind in {"prop", "weapon", "artifact"} or asset.get("asset_role") in {"prop", "weapon", "wardrobe"}:
+            if kind in {"costume", "wardrobe", "prop", "weapon", "artifact"} or asset.get("asset_role") in {"prop", "weapon", "wardrobe"}:
                 errors.append(f"ID-OWN: asset {aid} ({kind}) must set owner_id to a character")
             return errors
         card = characters.get(str(owner))
@@ -217,6 +217,8 @@ def check_job_identity(job: dict[str, Any], characters: dict[str, dict[str, Any]
         owner = str(asset.get("owner_id") or asset.get("character_id") or binding.get("character_id") or "")
         if owner:
             used_owners.add(owner)
+        prompt_file = job.get("compiled_prompt_path")
+        # compiled prompt is checked by caller via check_prompt_for_sex; keep owner mismatch here
         if owner and visible and owner not in visible and asset.get("kind") in {"costume", "wardrobe", "prop", "weapon"}:
             errors.append(f"ID-OWN: job {jid} binds {aid} owned by off-screen {owner}")
         other = str(asset.get("owner_id") or "")

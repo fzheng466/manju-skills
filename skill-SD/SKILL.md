@@ -18,6 +18,7 @@ python -m core.lib.transpile --project project.json --job-id JOB001 --profile se
 python scripts/transpile_h3.py --project project.json --job-id JOB001 --profile seedance-2.5 --out sd-prompt.md
 python -m core.lib.asset_prompt --kind character --aspect 16:9 --sex female --character-id LIN_WAN --file asset-hero.md
 python -m core.lib.identity --project project.json
+# 人物卡必须 presentation_sex=male|female；服装/道具必须 owner_id，禁止男女资产串套。
 python -m core.lib.shot_quality --job project.json --job-id JOB001 --prompt sd-prompt.md
 ```
 

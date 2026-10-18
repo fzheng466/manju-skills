@@ -4,7 +4,7 @@ __pycache__/
 .DS_Store
 .manju/
 effective-capability.lock.json
-channels/
+.manju/channels/
 **/channels/*.secret.json
 **/*apikey*
 .env
