@@ -9,7 +9,8 @@ from typing import Any
 
 H3_LEAK = re.compile(
     r"<Subject\s+\d+>|<Picture\s+\d+>|<Video\s+\d+>|<Audio\s+\d+>|<d>\s*\[|\(S\d+\)|"
-    r"\b(?:subject_definitions|retention_analysis|T2VA|I2VA|L2VA|FL2VA|Ref2VA)\b",
+    r"\b(?:subject_definitions|retention_analysis|T2VA|I2VA|L2VA|FL2VA|Ref2VA)\b|"
+    r"At\s+\d{1,2}:\d{2}(?:\.\d+)?",
     re.I,
 )
 MODE_MAP = {
@@ -54,6 +55,21 @@ def map_mode(h3_mode: str, profile: str) -> tuple[str, str | None]:
     return mapped, note
 
 
+def _span_label(start: Any, end: Any, profile: str) -> str:
+    if start in (None, "") or end in (None, ""):
+        return ""
+    if str(profile).endswith("2.0"):
+        return "随后"
+    try:
+        return f"[{float(start):.1f}s-{float(end):.1f}s]"
+    except (TypeError, ValueError):
+        return ""
+
+
+def _speaker_name(line: dict[str, Any]) -> str:
+    return str(line.get("speaker_name") or line.get("name") or line.get("speaker") or line.get("speaker_id") or "")
+
+
 def compile_prompt(job: dict[str, Any], *, profile: str = "seedance-2.5", aspect: str | None = None) -> dict[str, Any]:
     aspect = aspect or str(job.get("aspect_ratio") or "16:9")
     opener = "16:9横屏" if aspect == "16:9" else "9:16竖屏"
@@ -73,8 +89,12 @@ def compile_prompt(job: dict[str, Any], *, profile: str = "seedance-2.5", aspect
         if not isinstance(shot, dict):
             continue
         sid = shot.get("id") or shot.get("shot_id")
+        span = _span_label(shot.get("start_seconds"), shot.get("end_seconds"), profile)
         blocks.append("")
-        blocks.append(f"镜头 {sid} {shot.get('start_seconds')}–{shot.get('end_seconds')}s：{shot.get('purpose') or shot.get('main_action') or ''}")
+        head = f"镜头 {sid}"
+        if span:
+            head += f" {span}"
+        blocks.append(f"{head}：{shot.get('purpose') or shot.get('main_action') or ''}")
         if shot.get("camera"):
             blocks.append(f"摄影：{shot.get('camera')}")
         cam = shot.get("camera_plan") if isinstance(shot.get("camera_plan"), dict) else {}
@@ -85,14 +105,19 @@ def compile_prompt(job: dict[str, Any], *, profile: str = "seedance-2.5", aspect
         perf = shot.get("performance_plan") if isinstance(shot.get("performance_plan"), dict) else {}
         if perf:
             seq = perf.get("micro_expression_sequence") or []
-            blocks.append("表演：" + " → ".join(str(x) for x in seq) + f"；听者：{perf.get('listener_reaction')}")
+            listener = perf.get("listener_reaction")
+            line = "表演：" + " → ".join(str(x) for x in seq)
+            if listener:
+                line += f"；听者：{listener}"
+            blocks.append(line)
         for beat in shot.get("beats") or []:
             if not isinstance(beat, dict):
                 continue
-            blocks.append(
-                f"  {beat.get('start_seconds')}–{beat.get('end_seconds')}s 焦点{beat.get('focus')}："
-                f"{beat.get('visible_action')}；表情 {beat.get('expression')}"
-            )
+            action = str(beat.get("visible_action") or "")
+            action = re.sub(r"At\s+\d{1,2}:\d{2}(?:\.\d+)?", "", action, flags=re.I).strip()
+            bspan = _span_label(beat.get("start_seconds"), beat.get("end_seconds"), profile)
+            prefix = f"  {bspan} " if bspan else "  随后 "
+            blocks.append(f"{prefix}焦点{beat.get('focus')}：{action}；表情 {beat.get('expression')}")
         for line in shot.get("dialogue") or []:
             if not isinstance(line, dict):
                 continue
@@ -102,12 +127,18 @@ def compile_prompt(job: dict[str, Any], *, profile: str = "seedance-2.5", aspect
                 for k in ("volume", "pace", "timbre")
                 if delivery.get(k)
             ) or str(line.get("tone") or "原语气")
-            pre = line.get("pre_line_action") or "开口前完成视线"
-            post = line.get("listener_reaction") or line.get("post_line_reaction") or "句末听者微反应"
-            speaker = line.get("speaker_id") or ""
+            pre = line.get("pre_line_action")
+            post = line.get("listener_reaction") or line.get("post_line_reaction")
+            speaker = _speaker_name(line)
             text = line.get("text") or ""
             blocks.append(f"{speaker}以{audible}说：「{text}」")
-            blocks.append(f"可见：{pre}；听者 {post}")
+            vis = []
+            if pre:
+                vis.append(str(pre))
+            if post:
+                vis.append(f"听者 {post}")
+            if vis:
+                blocks.append("可见：" + "；".join(vis))
 
     prompt = "\n".join(blocks).strip() + "\n"
     errors = check_transpile(job, prompt)

@@ -22,12 +22,14 @@ VAGUE = (
     "精英感",
 )
 EMPTY_HANDS = ("双手空置", "空手", "不手持", "双手离开", "空置并离开")
-FOUR_VIEW = ("四视", "正面全身", "背面全身", "45")
 ARMOR_STRUCT = ("肩甲", "胸甲", "护心", "裙甲", "胫甲")
 ROBE_STRUCT = ("交领", "外纱", "腰封", "广袖", "飘带")
 TASSEL_STRUCT = ("流苏", "插入点", "下颌", "垂直")
 ARTIFACT_SIG = ("剪影", "轮廓", "炼", "灵", "握持", "导灵")
 HOLD_POINT = ("握持", "柄", "持物")
+SCENE_CAST = ("女主", "男主", "角色", "人物", "站在门口", "站在")
+COUNT_RE = re.compile(r"(肩甲|裙甲|流苏|飘带|甲片).{0,8}(\d+)\s*(片|股|条)")
+GLOW_OK_RE = re.compile(r"(从.{1,12}(刃|槽|核|心|尖|纹).{0,8}(发光|亮)|发光.{0,8}从.{1,12}(刃|槽|核|心|尖|纹))")
 
 
 def _has_any(text: str, needles: tuple[str, ...]) -> bool:
@@ -51,8 +53,8 @@ def check_text(kind: str, text: str, aspect: str = "16:9") -> list[str]:
             break
 
     if kind == "character":
-        if not _has_any(body, FOUR_VIEW):
-            errors.append("ASSET-CHAR: four-view board must list 正面/45°/背面全身")
+        if "正面全身" not in body or "背面全身" not in body or ("45" not in body and "侧面全身" not in body):
+            errors.append("ASSET-CHAR: four-view board must list 正面全身、45°/侧面全身、背面全身")
         if not _has_any(body, EMPTY_HANDS):
             errors.append("ASSET-CHAR: identity board must state empty hands (双手空置)")
         if any(k in body for k in ("战甲", "甲胄", "护甲")) and not _has_any(body, ARMOR_STRUCT):
@@ -61,8 +63,8 @@ def check_text(kind: str, text: str, aspect: str = "16:9") -> list[str]:
             errors.append("ASSET-CHAR: robe board missing layer/sash/ribbon anchors; read anime-3d-asset-lexicon")
         if "流苏" in body and not _has_any(body, TASSEL_STRUCT):
             errors.append("ASSET-CHAR: tassel board must count strands, insertion point, hang length")
-        if "结构计数" not in body and _has_any(body, ("战甲", "肩甲", "流苏", "飘带")):
-            errors.append("ASSET-CHAR: write 结构计数 (plate/tassel/ribbon counts) into character_design_record")
+        if _has_any(body, ("战甲", "肩甲", "流苏", "飘带")) and not COUNT_RE.search(body):
+            errors.append("ASSET-CHAR: 结构计数 must include a number (e.g. 肩甲4片 / 流苏3股 / 飘带2条)")
 
     if kind == "weapon":
         if not _has_any(body, ARTIFACT_SIG):
@@ -73,13 +75,13 @@ def check_text(kind: str, text: str, aspect: str = "16:9") -> list[str]:
             errors.append("ASSET-WPN: 16:9 weapon board should be 左主图 + 右细节窗")
         if aspect == "9:16" and "上" not in body and "主图" not in body:
             errors.append("ASSET-WPN: 9:16 weapon board should be 上主图 + 下细节窗")
-        if re.search(r"发光|仙气", body) and "光源" not in body and "从" not in body:
-            errors.append("ASSET-WPN: glow must name source path, not wrap the whole object")
+        if re.search(r"发光|仙气", body) and not GLOW_OK_RE.search(body) and "光源" not in body:
+            errors.append("ASSET-WPN: glow must name a structural source path (刃/槽/核/心), not wrap the whole object")
 
     if kind == "scene":
         if not _has_any(body, ("四向", "正向", "反向", "左侧向")):
             errors.append("ASSET-SCN: scene board should be a four-direction structure plate")
-        if _has_any(body, ("角色", "人物站")) and "禁止人物" not in body and "不加入角色" not in body:
+        if _has_any(body, SCENE_CAST) and "禁止人物" not in body and "不加入角色" not in body and "不加入人物" not in body:
             errors.append("ASSET-SCN: structure plate must not bake characters into the master")
     return errors
 

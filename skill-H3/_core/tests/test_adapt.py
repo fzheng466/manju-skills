@@ -198,10 +198,11 @@ def test_asset_character_requires_empty_hands_and_structure():
     bad = "生成一张人物图，仙气飘飘，高级感。"
     err = check_text("character", bad, "16:9")
     assert any("ASSET" in e for e in err)
+    stuffed = "16:9横屏 四视 肩甲 双手空置 结构计数 战甲很好看"
+    assert any("结构计数" in e or "ASSET-CHAR" in e for e in check_text("character", stuffed, "16:9"))
     good = (
         "16:9横屏角色四视图设定板。左侧超大正面胸像，右侧正面全身、45°侧面全身、背面全身。"
-        "双手空置并离开身体。战甲：胸甲上下两片、肩甲四片、裙甲四片、胫甲。"
-        "结构计数：肩甲4、裙甲4。"
+        "双手空置并离开身体。战甲：胸甲上下两片、肩甲4片、裙甲4片、胫甲。"
     )
     assert check_text("character", good, "16:9") == []
 
@@ -209,11 +210,15 @@ def test_asset_character_requires_empty_hands_and_structure():
 def test_asset_weapon_xianxia_needs_silhouette():
     err = check_text("weapon", "16:9横屏一把发光仙剑，很华丽。", "16:9")
     assert any("ASSET-WPN" in e or "ASSET-VAGUE" in e for e in err)
+    wrapped = "16:9横屏 左侧主图 剪影 柄 通体发光，从剑柄流出"
+    assert any("ASSET-WPN" in e for e in check_text("weapon", wrapped, "16:9"))
     good = (
         "16:9横屏武器资产板，左侧主图完整展示三叉戟剪影，右侧两个细节窗。"
-        "握持点在中段缠柄。炼制：寒铁夹层嵌青玉导灵槽，灵力从戟心沿主刃到叉尖。"
+        "握持点在中段缠柄。炼制：寒铁夹层嵌青玉导灵槽，灵力从戟心沿主刃到叉尖发光。"
     )
     assert check_text("weapon", good, "16:9") == []
+    scene_cast = "16:9 四向 场景，女主站在门口"
+    assert any("ASSET-SCN" in e for e in check_text("scene", scene_cast, "16:9"))
 
 
 def test_shot_rejects_vague_acting_and_stacked_moves():
@@ -281,6 +286,15 @@ def test_transpile_keeps_frozen_line_and_strips_h3():
     assert "T2VA" not in result["prompt"]
     assert reconstruct_dialogue(job) == "阵眼还在，别碰那盏灯。"
     assert result["errors"] == []
+    leaky = dict(job)
+    leaky["shots"] = [
+        {
+            **job["shots"][0],
+            "beats": [{"start_seconds": 0, "end_seconds": 3, "visible_action": "At 00:03.500 举刀", "expression": "眉心收紧"}],
+        }
+    ]
+    leaked = compile_prompt(leaky, profile="seedance-2.5")
+    assert "At 00:03.500" not in leaked["prompt"]
 
 
 def test_gch8_model_mismatch():

@@ -61,13 +61,24 @@ def main() -> int:
     args = p.parse_args()
     project = json.loads(args.project.read_text(encoding="utf-8"))
     baseline = json.loads(args.baseline.read_text(encoding="utf-8"))
+    from .channel import channels_dir
+
     ch = load_channel(args.channel)
+    channel_path = channels_dir() / f"{args.channel}.json"
     if not ch:
-        print(f"ERROR: channel {args.channel} not found in {Path.home() / '.manju' / 'channels'}", file=sys.stderr)
+        print(f"ERROR: channel {args.channel} not found in {channels_dir()}", file=sys.stderr)
         return 2
     models = ch.get("models") or {}
-    mk = args.model_key or baseline.get("model_profile") or next(iter(models), None)
-    channel_model = models.get(mk) or next(iter(models.values()), {})
+    mk = args.model_key or baseline.get("model_profile")
+    if mk and mk in models:
+        channel_model = models[mk]
+    else:
+        print(
+            f"ERROR: channel {args.channel} has no model key {mk!r}; "
+            f"available={list(models.keys())}. Pass --model-key explicitly.",
+            file=sys.stderr,
+        )
+        return 2
     lock = compute_lock(
         channel_id=args.channel,
         model_profile=str(baseline.get("model_profile") or mk),
@@ -75,7 +86,7 @@ def main() -> int:
         channel_model=channel_model,
         project=project,
         baseline_path=args.baseline,
-        channel_path=Path.home() / ".manju" / "channels" / f"{args.channel}.json",
+        channel_path=channel_path,
         project_path=args.project,
     )
     write_lock(args.out, lock)

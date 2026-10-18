@@ -8,8 +8,9 @@ import re
 from pathlib import Path
 from typing import Any
 
-VAGUE_PERF = re.compile(r"眼神复杂|气场强|表情微妙|很有戏|情绪饱满|眼神深邃")
-MULTI_MOVE = re.compile(r"(推轨|横移|摇|升降|环绕).{0,12}(推轨|横移|摇|升降|环绕)")
+VAGUE_PERF = re.compile(r"眼神复杂|气场强|表情微妙|很有戏|情绪饱满|眼神深邃|杀气很重|表情很冷|气场全开")
+MOVE_TOKEN = r"(推轨|拉轨|推近|拉远|横移|横摇|竖摇|摇摄|升降|环绕|变焦)"
+MULTI_MOVE = re.compile(MOVE_TOKEN + r".{0,24}" + MOVE_TOKEN)
 MID_ONLY = ("中景",)
 
 

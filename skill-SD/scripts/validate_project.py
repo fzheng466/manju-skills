@@ -345,6 +345,20 @@ def validate_project(data: dict[str, Any], root: Path) -> list[str]:
         elif isinstance(expected, str) and actual != expected:
             errors.append(f"utterance {uid}: shot dialogue does not exactly reconstruct the frozen text")
 
+    if stage == "submit":
+        skill_root = Path(__file__).resolve().parents[1]
+        if str(skill_root.parent) not in sys.path:
+            sys.path.insert(0, str(skill_root.parent))
+        if str(skill_root) not in sys.path:
+            sys.path.insert(0, str(skill_root))
+        try:
+            from core.lib.shot_quality import check_job
+        except ImportError:
+            from _core.lib.shot_quality import check_job  # type: ignore
+        for job in jobs:
+            if isinstance(job, dict):
+                errors.extend(check_job(job, _prompt_text_for_job(root, job)))
+
     return errors
 
 
