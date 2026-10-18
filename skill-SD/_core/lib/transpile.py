@@ -66,11 +66,56 @@ def _span_label(start: Any, end: Any, profile: str) -> str:
         return ""
 
 
-def _speaker_name(line: dict[str, Any]) -> str:
-    return str(line.get("speaker_name") or line.get("name") or line.get("speaker") or line.get("speaker_id") or "")
+def _speaker_name(line: dict[str, Any], cast: dict[str, str] | None = None) -> str:
+    sid = str(line.get("speaker_id") or "")
+    cast = cast or {}
+    return str(line.get("speaker_name") or line.get("name") or line.get("speaker") or cast.get(sid) or "")
 
 
-def compile_prompt(job: dict[str, Any], *, profile: str = "seedance-2.5", aspect: str | None = None) -> dict[str, Any]:
+def load_lexicon(path: Path | None = None) -> list[tuple[str, str]]:
+    if path is None:
+        here = Path(__file__).resolve()
+        for cand in (
+            here.parents[2] / "skill-SD" / "references" / "aesthetic" / "lexicon-dual-track.csv",
+            here.parents[1] / "references" / "aesthetic" / "lexicon-dual-track.csv",
+        ):
+            if cand.is_file():
+                path = cand
+                break
+    if path is None or not path.is_file():
+        return []
+    rows: list[tuple[str, str]] = []
+    for i, line in enumerate(path.read_text(encoding="utf-8").splitlines()):
+        if i == 0 or not line.strip():
+            continue
+        parts = line.split(",")
+        if len(parts) < 6:
+            continue
+        h3, sd, status = parts[1], parts[2], parts[5]
+        if status.strip() in {"verified", "hypothesis"} and h3 and sd:
+            rows.append((h3, sd))
+    rows.sort(key=lambda x: len(x[0]), reverse=True)
+    return rows
+
+
+def apply_lexicon(text: str, lexicon: list[tuple[str, str]]) -> tuple[str, list[str]]:
+    applied: list[str] = []
+    out = text
+    for src, dst in lexicon:
+        if src and src in out:
+            out = out.replace(src, dst)
+            applied.append(src)
+    return out, applied
+
+
+def compile_prompt(
+    job: dict[str, Any],
+    *,
+    profile: str = "seedance-2.5",
+    aspect: str | None = None,
+    characters: list[dict[str, Any]] | None = None,
+    lexicon: list[tuple[str, str]] | None = None,
+) -> dict[str, Any]:
     aspect = aspect or str(job.get("aspect_ratio") or "16:9")
     opener = "16:9横屏" if aspect == "16:9" else "9:16竖屏"
     mapped, note = map_mode(str(job.get("mode") or "T2VA"), profile)
@@ -84,6 +129,14 @@ def compile_prompt(job: dict[str, Any], *, profile: str = "seedance-2.5", aspect
     id_points = job.get("identification_points") or []
     if isinstance(id_points, list) and id_points:
         blocks.append("识别点复述：" + "；".join(str(x) for x in id_points[:4]))
+    cast: dict[str, str] = {}
+    for card in list(characters or []) + list(job.get("characters") or []):
+        if not isinstance(card, dict) or not card.get("name"):
+            continue
+        name = str(card["name"])
+        for key in (card.get("character_id"), card.get("id"), card.get("speaker_id")):
+            if key:
+                cast[str(key)] = name
 
     for shot in job.get("shots") or []:
         if not isinstance(shot, dict):
@@ -129,8 +182,11 @@ def compile_prompt(job: dict[str, Any], *, profile: str = "seedance-2.5", aspect
             ) or str(line.get("tone") or "原语气")
             pre = line.get("pre_line_action")
             post = line.get("listener_reaction") or line.get("post_line_reaction")
-            speaker = _speaker_name(line)
+            speaker = _speaker_name(line, cast)
             text = line.get("text") or ""
+            sid = str(line.get("speaker_id") or "")
+            if not speaker and sid and not re.fullmatch(r"[A-Za-z][A-Za-z0-9_\-]{1,24}", sid):
+                speaker = sid
             if speaker:
                 blocks.append(f"{speaker}以{audible}说：「{text}」")
             else:
@@ -144,14 +200,29 @@ def compile_prompt(job: dict[str, Any], *, profile: str = "seedance-2.5", aspect
                 blocks.append("可见：" + "；".join(vis))
 
     prompt = "\n".join(blocks).strip() + "\n"
-    errors = check_transpile(job, prompt)
-    return {"prompt": prompt, "mode": mapped, "aspect": aspect, "errors": errors}
+    applied: list[str] = []
+    if lexicon is None:
+        lexicon = load_lexicon()
+    if lexicon:
+        prompt, applied = apply_lexicon(prompt, lexicon)
+    errors = check_transpile(job, prompt, cast=cast)
+    return {"prompt": prompt, "mode": mapped, "aspect": aspect, "errors": errors, "lexicon_applied": applied}
 
 
-def check_transpile(job: dict[str, Any], prompt: str) -> list[str]:
+def check_transpile(job: dict[str, Any], prompt: str, cast: dict[str, str] | None = None) -> list[str]:
     errors: list[str] = []
     if H3_LEAK.search(prompt or ""):
         errors.append("G-TR2: Seedance prompt still contains H3 syntax")
+    if re.search(r"\b[a-z][a-z0-9_]{1,24}以.{0,8}说", prompt or ""):
+        errors.append("G-TR4: speaker rendered as machine id; use character name")
+    cast = cast or {}
+    for line in _lines(job):
+        sid = str(line.get("speaker_id") or "")
+        name = _speaker_name(line, cast)
+        if sid and not name:
+            if re.fullmatch(r"[A-Za-z][A-Za-z0-9_\-]{1,24}", sid):
+                errors.append(f"G-TR4: speaker {sid} has no character name")
+                break
     expected = reconstruct_dialogue(job)
     if expected:
         for line in _lines(job):
@@ -193,7 +264,12 @@ def main() -> int:
         if job is None:
             print(f"ERROR: job {args.job_id} not found")
             return 2
-    result = compile_prompt(job, profile=args.profile, aspect=job.get("aspect_ratio"))
+    result = compile_prompt(
+        job,
+        profile=args.profile,
+        aspect=job.get("aspect_ratio"),
+        characters=data.get("characters") if isinstance(data, dict) else None,
+    )
     if args.out:
         args.out.parent.mkdir(parents=True, exist_ok=True)
         args.out.write_text(result["prompt"], encoding="utf-8")

@@ -363,7 +363,7 @@ def validate_project(data: dict[str, Any], root: Path) -> list[str]:
         except ImportError:
             from _core.lib.identity import check_project as check_identity  # type: ignore
             from _core.lib.shot_quality import check_job  # type: ignore
-        errors.extend(check_identity(data))
+        errors.extend(check_identity(data, root=root))
         for job in jobs:
             if isinstance(job, dict):
                 errors.extend(check_job(job, _prompt_text_for_job(root, job)))

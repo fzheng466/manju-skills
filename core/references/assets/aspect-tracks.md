@@ -21,6 +21,8 @@
 | 人物四视图身份板 | 共用 | `asset_role: identity`，画幅可跟主线，引用时不锁视频构图 |
 | 场景四向结构板 | 结构共用 | 9:16 从该格取中心竖条，锚点必须在裁窗内；短边不够则单独出竖幅场景图，禁止拉伸 |
 | 构图资产 | 分线 | `SCENE_<ID>_<方向>_P` 登记 parent、crop_box、aspect、track_id |
+| 人物卡 | 共用身份 | 必填 `presentation_sex: male\|female`，提交缺失即拦截 |
+| 服装/道具/兵器 | 按角色 | 必填 `owner_id`，禁止跨角色、跨性别共用；生图走 `asset_prompt --sex` |
 
 ## 镜头提示词
 

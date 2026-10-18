@@ -1,5 +1,7 @@
 # 逐张生图、参考绑定与费用门
 
+正式调用必须走 `python -m core.lib.asset_gen`（或 `scripts/asset_gen.py`）：`n=1`、有 awaiting_review 时禁止下一张、不轮询、预算不足或未 `--confirm` 不调用。真实 adapter/密钥只在 `$MANJU_HOME`，不得写入仓库。
+
 ## 测试产物路径
 
 只要本次是资产图提示词测试、资产图生成测试、参考绑定试验或失败复现，目标路径必须位于 `E:\Test-data-Skill\<project_id>\<batch_id>\02_asset-tests\` 下；提示词放 `prompts`，输入副本放 `inputs`，生成图放 `generated`，逐张结果放 `reviews`。不得把测试图、测试提示词或测试日志写入项目的 `02_assets`、`04_h3_prompts`、`05_media` 或仓库目录。正式生产资产仍按项目合同登记。

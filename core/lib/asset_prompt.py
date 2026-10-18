@@ -92,10 +92,18 @@ def check_text(kind: str, text: str, aspect: str = "16:9", *, sex: str | None = 
             errors.append("ASSET-WPN: 9:16 weapon board should be 上主图 + 下细节窗")
         if re.search(r"发光|仙气", body) and not GLOW_OK_RE.search(body) and "光源" not in body:
             errors.append("ASSET-WPN: glow must name a structural source path (刃/槽/核/心), not wrap the whole object")
-        if sex:
+        inferred = sex
+        if not inferred:
+            if re.search(r"(女性|女主|女将|女修|female)", body, re.I):
+                inferred = "female"
+            elif re.search(r"(男性|男主|男将|男修|male)", body, re.I):
+                inferred = "male"
+        if inferred:
             from .identity import check_prompt_for_sex
 
-            errors.extend(check_prompt_for_sex(body, sex, character_id=character_id, kind="weapon"))
+            errors.extend(check_prompt_for_sex(body, inferred, character_id=character_id, kind="weapon"))
+        else:
+            errors.append("ID-SEX: weapon board must name owner sex or pass --sex")
 
     if kind == "scene":
         if not _has_any(body, ("四向", "正向", "反向", "左侧向")):

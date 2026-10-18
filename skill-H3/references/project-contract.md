@@ -52,7 +52,9 @@ project/
 
 ### 战斗账本（按需）
 
-战斗、斗法或能力型 job 在`continuity_ledger`之外填写`combat_ledger`：`advantage_chain`（优势方、证据、应对、反转和代价）、`exchange_state`（起点、媒介、轨迹、目标、接触或最近点、结果、受力和恢复）、`ability_lifecycle`（未使用时写`none`）、`peak_event`、`environment_feedback`和`next_action_interface`。普通文戏不添加该字段。### 连续性状态账本模板
+战斗、斗法或能力型 job 在`continuity_ledger`之外填写`combat_ledger`：`advantage_chain`（优势方、证据、应对、反转和代价）、`exchange_state`（起点、媒介、轨迹、目标、接触或最近点、结果、受力和恢复）、`ability_lifecycle`（未使用时写`none`）、`peak_event`、`environment_feedback`和`next_action_interface`。普通文戏不添加该字段。
+
+### 连续性状态账本模板
 
 每个 schema 1.2 的 job 在导演谱前填写下列结构；字段值写实际可见状态，不使用“同前”“保持一致”等代词。
 

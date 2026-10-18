@@ -57,10 +57,14 @@ def _hits(text: str, needles: tuple[str, ...]) -> list[str]:
             pos = body.find(n, idx)
             if pos < 0:
                 break
-            window = body[max(0, pos - 4):pos]
-            if not any(window.endswith(p) or p in window[-3:] for p in NEG_PREFIX):
-                found.append(n)
-                break
+            window = body[max(0, pos - 6):pos]
+            negated = any(window.endswith(p) or p in window[-4:] for p in NEG_PREFIX)
+            after = body[pos + len(n): pos + len(n) + 8]
+            if negated and not any(t in after for t in ("而是", "改为", "但")):
+                idx = pos + len(n)
+                continue
+            found.append(n)
+            break
             idx = pos + len(n)
     return found
 
@@ -200,7 +204,12 @@ def check_asset_binding(asset: dict[str, Any], characters: dict[str, dict[str, A
     return errors
 
 
-def check_job_identity(job: dict[str, Any], characters: dict[str, dict[str, Any]], assets_by_id: dict[str, dict[str, Any]]) -> list[str]:
+def check_job_identity(
+    job: dict[str, Any],
+    characters: dict[str, dict[str, Any]],
+    assets_by_id: dict[str, dict[str, Any]],
+    root: Path | None = None,
+) -> list[str]:
     errors: list[str] = []
     jid = job.get("id") or "?"
     visible = []
@@ -217,8 +226,6 @@ def check_job_identity(job: dict[str, Any], characters: dict[str, dict[str, Any]
         owner = str(asset.get("owner_id") or asset.get("character_id") or binding.get("character_id") or "")
         if owner:
             used_owners.add(owner)
-        prompt_file = job.get("compiled_prompt_path")
-        # compiled prompt is checked by caller via check_prompt_for_sex; keep owner mismatch here
         if owner and visible and owner not in visible and asset.get("kind") in {"costume", "wardrobe", "prop", "weapon"}:
             errors.append(f"ID-OWN: job {jid} binds {aid} owned by off-screen {owner}")
         other = str(asset.get("owner_id") or "")
@@ -228,21 +235,43 @@ def check_job_identity(job: dict[str, Any], characters: dict[str, dict[str, Any]
                 if cid in visible and other != cid and aid and str(binding.get("purpose") or "").find(cid) >= 0:
                     errors.append(f"ID-OWN: job {jid} uses {other}'s wardrobe {aid} on {cid}")
     prompt = str(job.get("prompt") or "")
-    if prompt and len(characters) >= 2:
+    pf = job.get("compiled_prompt_path")
+    if not prompt and isinstance(pf, str) and root is not None:
+        path = Path(pf) if Path(pf).is_absolute() else root / pf
+        if path.is_file():
+            try:
+                prompt = path.read_text(encoding="utf-8")
+            except OSError:
+                prompt = ""
+    names = {str(card.get("name") or cid): cid for cid, card in characters.items() if card.get("name") or cid}
+    if prompt:
         for cid, card in characters.items():
             sex = normalize_sex(card.get("presentation_sex") or card.get("sex"))
             name = str(card.get("name") or cid)
-            if name and name in prompt and sex:
-                window = prompt
-                # if a female-coded item appears near a male name, flag
+            if not name or name not in prompt or sex not in SEXES:
+                continue
+            start = 0
+            while True:
+                pos = prompt.find(name, start)
+                if pos < 0:
+                    break
+                window = prompt[max(0, pos - 60): pos + len(name) + 60]
+                other_female = [
+                    n for n, ocid in names.items()
+                    if n != name and n in window and normalize_sex(characters[ocid].get("presentation_sex")) == "female"
+                ]
                 if sex == "male":
                     bad = _hits(window, FEMALE_WARDROBE)
-                    if bad and name in window:
-                        errors.append(f"ID-MIX: job {jid} prompt may put female-coded {sorted(set(bad))[:4]} on male {name}")
+                    if bad and not other_female:
+                        errors.append(
+                            f"ID-MIX: job {jid} compiled prompt may put female-coded {sorted(set(bad))[:4]} on male {name}"
+                        )
+                        break
+                start = pos + len(name)
     return errors
 
 
-def check_project(project: dict[str, Any]) -> list[str]:
+def check_project(project: dict[str, Any], root: Path | None = None) -> list[str]:
     errors: list[str] = []
     characters = characters_from_project(project)
     assets = [a for a in (project.get("assets") or []) if isinstance(a, dict)]
@@ -256,7 +285,7 @@ def check_project(project: dict[str, Any]) -> list[str]:
     if project.get("stage") == "submit":
         for job in project.get("jobs") or []:
             if isinstance(job, dict):
-                errors.extend(check_job_identity(job, characters, assets_by_id))
+                errors.extend(check_job_identity(job, characters, assets_by_id, root=root))
     return errors
 
 
@@ -271,7 +300,7 @@ def main() -> int:
     errors: list[str] = []
     if args.project:
         data = json.loads(args.project.read_text(encoding="utf-8"))
-        errors.extend(check_project(data))
+        errors.extend(check_project(data, root=args.project.parent))
     if args.prompt:
         text = args.prompt.read_text(encoding="utf-8")
         errors.extend(check_prompt_for_sex(text, args.sex or "", character_id=args.character_id, kind=args.kind))

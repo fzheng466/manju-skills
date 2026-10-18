@@ -222,7 +222,7 @@ def test_asset_weapon_xianxia_needs_silhouette():
     wrapped = "16:9横屏 左侧主图 剪影 柄 通体发光，从剑柄流出"
     assert any("ASSET-WPN" in e for e in check_text("weapon", wrapped, "16:9"))
     good = (
-        "16:9横屏武器资产板，左侧主图完整展示三叉戟剪影，右侧两个细节窗。"
+        "16:9横屏男性持有者武器资产板，左侧主图完整展示三叉戟剪影，右侧两个细节窗。"
         "握持点在中段缠柄。炼制：寒铁夹层嵌青玉导灵槽，灵力从戟心沿主刃到叉尖发光。"
     )
     assert check_text("weapon", good, "16:9") == []
@@ -362,3 +362,69 @@ def test_gch8_model_mismatch():
         lambda job: "",
     )
     assert any(e.startswith("G-CH8") for e in err)
+
+
+def test_transpile_uses_character_name_not_speaker_id():
+    job = {
+        "mode": "T2VA",
+        "aspect_ratio": "16:9",
+        "duration_seconds": 8,
+        "shots": [
+            {
+                "id": "S1",
+                "start_seconds": 0,
+                "end_seconds": 8,
+                "purpose": "对峙",
+                "dialogue": [{"speaker_id": "shen", "text": "别碰。", "tone": "低"}],
+            }
+        ],
+    }
+    named = compile_prompt(
+        job,
+        profile="seedance-2.5",
+        characters=[{"character_id": "SHEN_YAN", "speaker_id": "shen", "name": "沈砚"}],
+        lexicon=[],
+    )
+    assert "沈砚以" in named["prompt"]
+    assert "shen以" not in named["prompt"]
+    missing = compile_prompt(job, profile="seedance-2.5", characters=[], lexicon=[])
+    assert any("G-TR4" in e for e in missing["errors"])
+
+
+def test_weapon_without_sex_still_identity_checked():
+    err = check_text("weapon", "16:9横屏 左侧主图 剪影 握持 柄 步摇", "16:9")
+    assert any("ID-SEX" in e or "ID-MIX" in e for e in err)
+
+
+def test_identity_compiled_prompt_window():
+    from core.lib.identity import check_job_identity
+
+    characters = {
+        "SHEN_YAN": {"character_id": "SHEN_YAN", "name": "沈砚", "presentation_sex": "male"},
+        "LIN_WAN": {"character_id": "LIN_WAN", "name": "林晚", "presentation_sex": "female"},
+    }
+    bad = check_job_identity({"id": "J1", "prompt": "沈砚戴步摇立于灯前"}, characters, {})
+    assert any("ID-MIX" in e for e in bad)
+    ok = check_job_identity({"id": "J1", "prompt": "沈砚身旁的林晚戴步摇"}, characters, {})
+    assert not any("ID-MIX" in e for e in ok)
+
+
+def test_identity_negation_but_clause_still_flags():
+    mixed = check_prompt_for_sex(
+        "16:9横屏男性角色。正面全身、45°侧面全身、背面全身。双手空置。男主，不是抹胸而是抹胸式内衬。",
+        "male",
+        character_id="SHEN",
+    )
+    assert any("ID-MIX" in e for e in mixed)
+
+
+import unittest as _unittest
+
+
+class TestAll(_unittest.TestCase):
+    pass
+
+
+for _name, _fn in list(globals().items()):
+    if _name.startswith("test_") and callable(_fn) and _name != "TestAll":
+        setattr(TestAll, _name, staticmethod(_fn))

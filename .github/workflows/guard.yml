@@ -1,0 +1,24 @@
+name: guard
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m unittest discover -s core/tests -t .
+      - run: python -m unittest discover -s skill-H3/scripts -p "test_*.py"
+      - run: python -m unittest discover -s skill-SD/scripts -p "test_*.py"
+      - run: python build/check_drift.py
+      - name: examples/channels is not gitignored
+        run: git check-ignore -q examples/channels/local-template.json && exit 1 || exit 0
+      - name: no leftover marketing claims
+        run: |
+          if grep -REn '99%|Midjourney|@image_keyframe' --include='*.md' skill-SD/references/versions; then
+            exit 1
+          fi
+          if grep -n '。###' skill-H3/references/project-contract.md; then
+            exit 1
+          fi
