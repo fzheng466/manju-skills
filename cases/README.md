@@ -13,7 +13,11 @@ cases/
     h3-prompt.md
     sd-prompt.md
     request.redacted.json
-  拾荒-ep001-sc001-巷口/     # 填实测后提交评分表，媒体不进 Git
+  拾荒-ep001-assets/          # 身份/场景/道具板；*.P.md = 9:16
+  拾荒-ep001-jobs.md          # 11 段导演谱（L/P 共用 beats）
+  拾荒-ep001-sc001-巷口/      # J01 16:9 + *.P.md 9:16；媒体不进 Git
+  拾荒-ep001-sc002-客厅/      # J04
+  拾荒-ep001-sc003-阳台光幕/  # J08 + J10 双人纵深（P）
 ```
 
 ## 最小实测集（Opus 建议的 3 镜）
