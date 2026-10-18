@@ -9,7 +9,8 @@ from core.lib.shot_quality import check_job
 class PostTests(unittest.TestCase):
     def setUp(self) -> None:
         self.project = {
-            "utterances": [{"utterance_id": "U1", "text": "阵眼还在。", "speaker_id": "SHEN"}],
+            "characters": [{"character_id": "SHEN", "speaker_id": "SHEN", "name": "沈砚"}],
+            "utterances": [{"utterance_id": "U1", "text": "阵眼还在。", "speaker_id": "SHEN", "kind": "VO"}],
             "jobs": [
                 {
                     "id": "J1",
@@ -49,11 +50,14 @@ class PostTests(unittest.TestCase):
         srt = srt_text(self.project, "L")
         self.assertIn("00:00:01,000 --> 00:00:03,000", srt)
         self.assertIn("阵眼还在。", srt)
+        self.assertIn("[VO]", srt)
+        self.assertIn("沈砚", audio_plan(self.project)["items"][0]["name"])
 
     def test_edl_skips_unreviewed(self):
         text, warns = edl_text(self.project, "L")
         self.assertIn("001", text)
         self.assertTrue(any("J2" in w for w in warns))
+        self.assertRegex(text, r"\d{2}:\d{2}:\d{2}:\d{2}")
 
     def test_audio_plan_reconstruct(self):
         plan = audio_plan(self.project)

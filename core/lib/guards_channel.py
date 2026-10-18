@@ -62,7 +62,13 @@ def resolve_effective(lock: dict[str, Any], job: dict[str, Any] | None = None) -
 
 
 def check(prompt_text: str, job: dict[str, Any], lock: dict[str, Any]) -> list[str]:
+    errors, _warns = check_with_warnings(prompt_text, job, lock)
+    return errors
+
+
+def check_with_warnings(prompt_text: str, job: dict[str, Any], lock: dict[str, Any]) -> tuple[list[str], list[str]]:
     errors: list[str] = []
+    warns: list[str] = []
     eff = resolve_effective(lock, job)
     jid = job.get("id") or job.get("track_id") or "?"
     status = eff.get("status")
@@ -73,7 +79,7 @@ def check(prompt_text: str, job: dict[str, Any], lock: dict[str, Any]) -> list[s
             f"unsupported by channel {conflict.get('channel') or []}; "
             "pause this track only (switch_channel/wait/derivative)"
         )
-        return errors
+        return errors, warns
 
     dur = eff.get("duration_seconds") or {}
     job_dur = float(job.get("duration_seconds") or 0)
@@ -144,8 +150,7 @@ def check(prompt_text: str, job: dict[str, Any], lock: dict[str, Any]) -> list[s
             {k: {"status": v} if isinstance(v, str) else v for k, v in cap_status.items()}
         )
         errors.extend(g_err)
-        for w in g_warn:
-            print(w)
+        warns.extend(g_warn)
     audio = eff.get("audio_output")
     if audio == "none":
         if SILENT_AUDIO_RE.search(prompt_text or ""):
@@ -154,7 +159,7 @@ def check(prompt_text: str, job: dict[str, Any], lock: dict[str, Any]) -> list[s
             errors.append("G-CH5: silent channel requires overall_soundscape/non_diegetic_music N/A")
         if DIALOGUE_BLOCK_RE.search(prompt_text or ""):
             errors.append("G-CH5: silent channel but compiled <d> dialogue is present; move to audio_post_plan")
-    return errors
+    return errors, warns
 
 
 def apply_lock_checks(

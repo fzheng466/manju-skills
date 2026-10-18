@@ -40,8 +40,8 @@ def check_job(job: dict[str, Any], prompt_text: str = "") -> list[str]:
     errors: list[str] = []
     errors.extend(check_prompt(prompt_text, job))
     scales: list[str] = []
-    PORTRAIT_MIN = {"全身": 75, "中景": 50, "近景": 70, "远景": 20}
-    LANDSCAPE_MIN = {"全身": 65, "中景": 35, "近景": 55, "远景": 10}
+    PORTRAIT_MIN = {"全身": 75, "中近景": 60, "中景": 50, "近景": 70, "特写": 80, "大远景": 8, "远景": 20}
+    LANDSCAPE_MIN = {"全身": 65, "中近景": 45, "中景": 35, "近景": 55, "特写": 70, "大远景": 3, "远景": 10}
     REGION = ("眉", "眼", "睑", "嘴", "唇", "颌", "呼吸", "肩", "喉")
     for si, shot in enumerate(job.get("shots") or []):
         if not isinstance(shot, dict):

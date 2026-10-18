@@ -7,8 +7,29 @@ from pathlib import Path
 from typing import Any
 
 
+def _cast(project: dict[str, Any]) -> dict[str, str]:
+    out: dict[str, str] = {}
+    for card in project.get("characters") or []:
+        if isinstance(card, dict) and card.get("name"):
+            name = str(card["name"])
+            for key in (card.get("character_id"), card.get("id"), card.get("speaker_id")):
+                if key:
+                    out[str(key)] = name
+    return out
+
+
+def _utterances(project: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    return {
+        str(u.get("utterance_id")): u
+        for u in (project.get("utterances") or [])
+        if isinstance(u, dict) and u.get("utterance_id")
+    }
+
+
 def _lines(project: dict[str, Any]) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
+    cast = _cast(project)
+    utt = _utterances(project)
     for job in project.get("jobs") or []:
         if not isinstance(job, dict):
             continue
@@ -22,17 +43,21 @@ def _lines(project: dict[str, Any]) -> list[dict[str, Any]]:
                     continue
                 start = float(line.get("start_seconds") or shot.get("start_seconds") or 0)
                 end = float(line.get("end_seconds") or shot.get("end_seconds") or start)
+                uid = str(line.get("utterance_id") or "")
+                src = utt.get(uid) or {}
+                sid = str(line.get("speaker_id") or src.get("speaker_id") or "")
+                kind = str(line.get("kind") or src.get("kind") or "dialogue")
                 out.append(
                     {
-                        "utterance_id": line.get("utterance_id"),
-                        "speaker_id": line.get("speaker_id"),
-                        "name": line.get("speaker_name") or line.get("name") or line.get("speaker_id"),
-                        "voice_profile_id": line.get("voice_profile_id") or job.get("voice_profile_id"),
+                        "utterance_id": uid or None,
+                        "speaker_id": sid,
+                        "name": line.get("speaker_name") or line.get("name") or cast.get(sid) or sid,
+                        "voice_profile_id": line.get("voice_profile_id") or src.get("voice_profile_id") or job.get("voice_profile_id"),
                         "track": track,
                         "global_start": offset + start,
                         "global_end": offset + end,
-                        "text": line.get("text") or "",
-                        "kind": line.get("kind") or "dialogue",
+                        "text": line.get("text") or src.get("text") or "",
+                        "kind": kind,
                         "delivery": line.get("delivery") or line.get("tone"),
                         "job_id": job.get("id"),
                         "job_status": job.get("status"),
@@ -46,13 +71,19 @@ def audio_plan(project: dict[str, Any]) -> dict[str, Any]:
     return {"schema": "audio_post_plan.1", "items": _lines(project)}
 
 
-def _ts(seconds: float, srt: bool = True) -> str:
-    ms = int(round(max(0.0, seconds) * 1000))
-    h, rem = divmod(ms, 3600_000)
-    m, rem = divmod(rem, 60_000)
-    s, milli = divmod(rem, 1000)
-    sep = "," if srt else ":"
-    return f"{h:02d}:{m:02d}:{s:02d}{sep}{milli:03d}"
+def _ts(seconds: float, srt: bool = True, fps: float = 24.0) -> str:
+    sec = max(0.0, float(seconds))
+    if srt:
+        ms = int(round(sec * 1000))
+        h, rem = divmod(ms, 3600_000)
+        m, rem = divmod(rem, 60_000)
+        s, milli = divmod(rem, 1000)
+        return f"{h:02d}:{m:02d}:{s:02d},{milli:03d}"
+    total = int(round(sec * fps))
+    h, rem = divmod(total, int(3600 * fps))
+    m, rem = divmod(rem, int(60 * fps))
+    s, frames = divmod(rem, int(fps))
+    return f"{h:02d}:{m:02d}:{s:02d}:{frames:02d}"
 
 
 def srt_text(project: dict[str, Any], track: str | None = None) -> str:
@@ -62,8 +93,8 @@ def srt_text(project: dict[str, Any], track: str | None = None) -> str:
         if track and item.get("track") != track:
             continue
         text = item["text"]
-        if item.get("kind") in {"OS", "VO"}:
-            text = f"[{item['kind']}] {text}"
+        if str(item.get("kind") or "").upper() in {"OS", "VO"}:
+            text = f"[{str(item['kind']).upper()}] {text}"
         blocks.append(f"{n}\n{_ts(item['global_start'])} --> {_ts(item['global_end'])}\n{text}\n")
         n += 1
     return "\n".join(blocks)
@@ -93,11 +124,12 @@ def edl_text(project: dict[str, Any], track: str | None = None) -> tuple[str, li
             if isinstance(asset, dict) and asset.get("generated_by_job_id") == job.get("id"):
                 path = str(asset.get("path") or "")
                 break
-        rec_in = _ts(start, srt=False).replace(",", ":")
-        rec_out = _ts(start + dur, srt=False).replace(",", ":")
-        src_in = _ts(0, srt=False).replace(",", ":")
-        src_out = _ts(dur, srt=False).replace(",", ":")
-        lines.append(f"{rec:03d}  {src:<8} V     C        {src_in} {src_out} {rec_in} {rec_out}")
+        rec_in = _ts(start, srt=False)
+        rec_out = _ts(start + dur, srt=False)
+        src_in = _ts(0, srt=False)
+        src_out = _ts(dur, srt=False)
+        reel = (Path(path).stem[:8].upper() if path else "AX") or "AX"
+        lines.append(f"{rec:03d}  {reel:<8} V     C        {src_in} {src_out} {rec_in} {rec_out}")
         if path:
             lines.append(f"* FROM CLIP NAME: {path}")
         rec += 1

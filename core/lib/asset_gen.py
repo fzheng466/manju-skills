@@ -226,6 +226,7 @@ def cmd_next(project: dict[str, Any], *, channel_id: str, budget: float, confirm
         "n": 1,
         "aspect": asset.get("aspect_ratio") or "16:9",
     }
+    nxt["charged"] = price
     try:
         result = _call_adapter(ch, payload)
     except subprocess.TimeoutExpired:

@@ -111,6 +111,16 @@ class AssetGenTests(unittest.TestCase):
         self.assertEqual(asset_gen.cmd_resolve(self.project, "CHAR1", 1), 0)
         self.assertEqual(asset_gen.load_queue("p1")["spent"], 1.0)
 
+    def test_failed_next_records_charged_for_resolve(self):
+        (self.adapter / "fake.py").write_text("def generate(payload):\n    raise RuntimeError('boom')\n", encoding="utf-8")
+        code = asset_gen.cmd_next(self.project, channel_id="local", budget=5, confirm=True)
+        self.assertEqual(code, 3)
+        item = asset_gen.load_queue("p1")["items"][0]
+        self.assertEqual(item["status"], "unknown")
+        self.assertEqual(item.get("charged"), 1.0)
+        self.assertEqual(asset_gen.cmd_resolve(self.project, "CHAR1", 1), 0)
+        self.assertEqual(asset_gen.load_queue("p1")["spent"], 1.0)
+
 
 if __name__ == "__main__":
     unittest.main()
