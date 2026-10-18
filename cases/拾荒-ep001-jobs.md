@@ -1,9 +1,11 @@
 # EP001《最后一顿酒》H3 job 拆分（草稿，未提交）
 
-- deliverables: `[{ "track_id": "L", "aspect": "16:9" }]`
+- deliverables: `[{ "track_id": "L", "aspect": "16:9" }, { "track_id": "P", "aspect": "9:16" }]`
 - channel: unverified-local / capability declared
 - 未调用生图/生视频；无 lock 不能 submit
 - 总时长约 105s（11 jobs），落在 90–180s
+- L 线完整编译 J01 / J04 / J08；P 线完整编译 J01 / J04 / J08 / J10（J10 仅 P 双人过肩）
+- P 线提示词由 Opus 5.5 从冻结 L 源重编（commit 本轮），不要沿用本地第一版 `*.P.md`
 
 | job | 场 | 时长 | beats | 首态 → 末态 | 冻结台词 / 画面文字 |
 |---|---|---|---|---|---|
