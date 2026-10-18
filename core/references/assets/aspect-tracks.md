@@ -16,14 +16,15 @@
 
 ## 资产
 
-交付画幅 ≠ 资产图画幅。成片可以是 9:16，**主板永远 16:9**。
+交付画幅 ≠ 资产图画幅。成片可以是 9:16，**资产图只出一套 16:9，两条线共用**。竖屏默认不裁图、不重生图。
 
 | 资产 | 画幅 | 规则 |
 |---|---|---|
-| 人物四视图身份板 | **永远 16:9** | 一人一张主板，L/P 共用。禁止再出一张 9:16 身份板。引用时不锁视频构图 |
-| 场景四向结构板 | **永远 16:9** | 锚点只在这张上定义。9:16 从已过审真图取中心竖条（可向锚点偏移），登记 `parent_asset_id` + `crop_box`；短边不够才出 `derivative`，锚点句必须照抄主板，禁止拉伸、禁止把路灯挪到中轴 |
-| 道具/兵器结构板 | **永远 16:9** | 左主图 + 右细节窗 |
-| 构图派生 / 首尾帧 | 跟随交付线 | `SCENE_<ID>_<方向>_P` 或 `kind: frame`。帧图必须等于成片画幅 |
+| 人物四视图身份板 | **永远 16:9，一套** | 一人一张。9:16 视频直接把这张图当 `<Picture n>` 挂上，不锁构图 |
+| 场景四向结构板 | **永远 16:9，一套** | 锚点只在这张上定义。9:16 镜头在提示词里写纵深、锚点落点、人物高度、8% 安全区 |
+| 道具/兵器结构板 | **永远 16:9，一套** | 左主图 + 右细节窗。不另出竖版 |
+| 首尾帧锚图 | 跟随交付线 | 只有 I2VA/FL2VA 的首尾帧必须是成片画幅的实帧（通常从上一段视频抽） |
+| 竖裁参考图 | **失败后才做** | 某镜试跑后被 16:9 参考带成横构图或锚点漂移，才给那一镜补一张竖裁。不是默认步骤 |
 | 人物卡 | 共用身份 | 必填 `presentation_sex: male\|female`，提交缺失即拦截 |
 | 服装/道具/兵器绑定 | 按角色 | 必填 `owner_id`；专属识别点不得落到别的角色板上。生图走 `asset_prompt --sex --project` |
 
@@ -44,8 +45,6 @@
 ```text
 python -m core.lib.asset_prompt --kind character|prop|weapon --aspect 16:9 --sex male|female --file <prompt.md> --project project.json
 python -m core.lib.asset_prompt --kind scene --aspect 16:9 --file <prompt.md>
-python -m core.lib.asset_prompt --kind scene --aspect 9:16 --derivative-of SCENE_<ID> --file <crop.md>
-python -m core.lib.aspect_sync --landscape scene.md --portrait crop.md --scene-id SCENE_<ID>
 python -m core.lib.shot_quality --job project.json --job-id <id> --prompt compiled.md
 python -m core.lib.adapt --job project.json --lock effective-capability.lock.json
 python -m core.lib.transpile --project project.json --job-id <id> --profile seedance-2.5 --out sd.md

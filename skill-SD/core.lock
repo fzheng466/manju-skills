@@ -26,7 +26,7 @@
     "tests/test_post.py": "b33fcfa92c232b3e96c74793351d98798bf0dba13643ffe429e5bc5201a32427",
     "tests/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "references/assets/anime-3d-asset-lexicon.md": "a842a2cdfe741b10ff2a21038d499a6650fd30b6e1bdaa21dc8573d6c4a6bd3b",
-    "references/assets/aspect-tracks.md": "d27c30740546320b873c7739b8419605b0dba745486c43bf87e45fea8da92cb6",
+    "references/assets/aspect-tracks.md": "108b00201f27306c59b475520ee2ab85c99d0e32808b2ac92b61c5d2a792e648",
     "references/assets/identity-lock.md": "b0c265c08c9b87f617b04bd597cd847c8375b597dedcc26562baaf6749cb7691",
     "references/channel/adaptive-rules.md": "27c949d6133299f60a8e123d3ba6fca2548be8d22d41660669fe6b8cf483dce5",
     "references/channel/guards-channel.md": "f9db2f6815e3b3986d34eb868fa08eba82a5c2ebab37131cf7cdfeb2ce90d589",

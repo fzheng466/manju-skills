@@ -15,7 +15,7 @@ metadata:
 调用本技能后，在写资产图或 H3 提示词之前：
 
 1. 读取 `_core/references/channel/interview.md` 与 `_core/references/assets/aspect-tracks.md`。
-2. **第一问：这次交付 16:9、9:16，还是两条都要？** 写入 `deliverables`。交付画幅只决定**视频镜头提示词**与 **I2VA/FL2VA 首尾帧锚图**。人物四视图、场景四向结构板、道具/兵器板一律出 **16:9 主板**（一人/一景/一器一张）。9:16 成片从已过审的 16:9 真图裁切登记 `parent_asset_id` + `crop_box`；裁不下才单独出 `derivative`，锚点句子必须照抄主板。禁止按成片画幅再生成一张身份板。
+2. **第一问：这次交付 16:9、9:16，还是两条都要？** 写入 `deliverables`。**交付画幅只决定视频提示词。** 人物四视图、场景四向、道具/兵器一律只出一套 **16:9** 资产图，L/P 共用，9:16 视频任务直接把这套图当参考挂上（请求必须显式指定 9:16）。竖屏的远近、纵深、人物高度占比、上下 8% 安全区全部写在 9:16 视频提示词里，不另出身份/场景/道具竖图。只有 I2VA/FL2VA **首尾帧**必须是 9:16 实帧；某个镜头试跑后场景被带成横构图，才给那一镜补一张竖裁参考。禁止按成片画幅再生成一张身份板。
 3. 再选渠道（`$MANJU_HOME/channels`）。一条线渠道不支持该画幅时，只暂停该线（换渠道 / 等待 / 衍生版），**不改另一条线已定稿资产**。
 4. 生成 lock：`python -m core.lib.lock --project project.json --channel <id> --baseline models/h3.baseline.json --out effective-capability.lock.json`
 5. 提交前必须：`python scripts/validate_project.py project.json --lock effective-capability.lock.json`
@@ -28,7 +28,6 @@ python -m core.lib.asset_prompt --kind character --aspect 16:9 --sex male --char
 python -m core.lib.identity --project project.json
 python -m core.lib.asset_prompt --kind weapon --aspect 16:9 --sex male --character-id SHEN_YAN --file artifact.md --project project.json
 python -m core.lib.asset_prompt --kind scene --aspect 16:9 --file scene.md
-python -m core.lib.asset_prompt --kind scene --aspect 9:16 --derivative-of SCENE_ALLEY --file scene-crop.md
 python -m core.lib.shot_quality --job project.json --job-id JOB001 --prompt compiled.md
 python -m core.lib.adapt --job project.json --lock effective-capability.lock.json --job-id JOB001
 ```
