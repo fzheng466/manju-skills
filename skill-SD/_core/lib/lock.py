@@ -1,12 +1,14 @@
-"""Write and load effective-capability.lock.json."""
+"""Write and load effective-capability.lock.json (per deliverable track)."""
 from __future__ import annotations
 
+import argparse
 import json
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from .channel import file_hash, merge_effective
+from .channel import file_hash, load_channel, merge_effective, project_tracks
 
 
 def compute_lock(
@@ -20,12 +22,17 @@ def compute_lock(
     channel_path: Path | None = None,
     project_path: Path | None = None,
 ) -> dict[str, Any]:
-    effective = merge_effective(baseline, channel_model, project)
+    tracks = {}
+    for tr in project_tracks(project):
+        tracks[tr["track_id"]] = merge_effective(baseline, channel_model, project, tr)
+    # backward compat: first track as effective
+    first = next(iter(tracks.values()), {})
     return {
         "channel_id": channel_id,
         "model_profile": model_profile,
         "computed_at": datetime.now(timezone.utc).isoformat(),
-        "effective": effective,
+        "tracks": tracks,
+        "effective": first,
         "sources": {
             "baseline_hash": file_hash(baseline_path) if baseline_path and baseline_path.is_file() else None,
             "channel_hash": file_hash(channel_path) if channel_path and channel_path.is_file() else None,
@@ -42,3 +49,39 @@ def write_lock(path: Path, lock: dict[str, Any]) -> Path:
 
 def load_lock(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def main() -> int:
+    p = argparse.ArgumentParser(description="Write effective-capability.lock.json")
+    p.add_argument("--project", type=Path, required=True)
+    p.add_argument("--channel", required=True, help="channel_id under $MANJU_HOME/channels")
+    p.add_argument("--baseline", type=Path, required=True)
+    p.add_argument("--out", type=Path, default=Path("effective-capability.lock.json"))
+    p.add_argument("--model-key", default=None, help="key inside channel.models (default: first / baseline profile)")
+    args = p.parse_args()
+    project = json.loads(args.project.read_text(encoding="utf-8"))
+    baseline = json.loads(args.baseline.read_text(encoding="utf-8"))
+    ch = load_channel(args.channel)
+    if not ch:
+        print(f"ERROR: channel {args.channel} not found in {Path.home() / '.manju' / 'channels'}", file=sys.stderr)
+        return 2
+    models = ch.get("models") or {}
+    mk = args.model_key or baseline.get("model_profile") or next(iter(models), None)
+    channel_model = models.get(mk) or next(iter(models.values()), {})
+    lock = compute_lock(
+        channel_id=args.channel,
+        model_profile=str(baseline.get("model_profile") or mk),
+        baseline=baseline,
+        channel_model=channel_model,
+        project=project,
+        baseline_path=args.baseline,
+        channel_path=Path.home() / ".manju" / "channels" / f"{args.channel}.json",
+        project_path=args.project,
+    )
+    write_lock(args.out, lock)
+    print(f"wrote {args.out} tracks={list((lock.get('tracks') or {}).keys())}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

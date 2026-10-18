@@ -159,8 +159,14 @@ def validate_project(data: dict[str, Any], root: Path) -> list[str]:
         errors.append("project_id and title are required")
     if data.get("pipeline") != PIPELINE or data.get("model_profile") != PIPELINE:
         errors.append(f"pipeline and model_profile must both be '{PIPELINE}'")
-    if data.get("aspect_ratio") != "16:9":
-        errors.append("aspect_ratio must be '16:9'")
+    allowed = {"16:9", "9:16"}
+    deliverables = data.get("deliverables")
+    if isinstance(deliverables, list) and deliverables:
+        aspects = {d.get("aspect") for d in deliverables if isinstance(d, dict)}
+        if not aspects <= allowed:
+            errors.append("deliverables.aspect must be 16:9 or 9:16")
+    elif data.get("aspect_ratio") not in allowed:
+        errors.append("aspect_ratio must be '16:9' or '9:16'")
     stage = data.get("stage")
     if stage not in {"draft", "submit"}:
         errors.append("stage must be 'draft' or 'submit'")
@@ -186,8 +192,8 @@ def validate_project(data: dict[str, Any], root: Path) -> list[str]:
                 if not capability.get(field):
                     errors.append(f"capability.{field} is required for submit")
             aspect_ratios = capability.get("aspect_ratios")
-            if not isinstance(aspect_ratios, list) or "16:9" not in aspect_ratios:
-                errors.append("capability must explicitly confirm 16:9")
+            if not isinstance(aspect_ratios, list) or not (set(aspect_ratios) & allowed):
+                errors.append("capability must confirm 16:9 and/or 9:16")
             if not isinstance(capability.get("supported_modes"), list):
                 errors.append("capability.supported_modes must be a list")
             if not isinstance(capability.get("supported_input_roles"), list):
@@ -224,8 +230,8 @@ def validate_project(data: dict[str, Any], root: Path) -> list[str]:
         asset_by_id[aid] = asset
         if asset.get("status") not in {"planned", "candidate", "approved", "stale", "rejected"}:
             errors.append(f"asset {aid}: invalid status")
-        if asset.get("aspect_ratio") not in (None, "16:9"):
-            errors.append(f"asset {aid}: aspect_ratio must be 16:9 when specified")
+        if asset.get("aspect_ratio") not in (None, "16:9", "9:16"):
+            errors.append(f"asset {aid}: aspect_ratio must be 16:9 or 9:16 when specified")
         frame_source = asset.get("frame_source")
         if asset.get("kind") == "video" and asset.get("archived") is True:
             generated_by = asset.get("generated_by_job_id")
@@ -239,8 +245,8 @@ def validate_project(data: dict[str, Any], root: Path) -> list[str]:
         if frame_source is not None:
             if asset.get("kind") != "image":
                 errors.append(f"asset {aid}: video frame asset must have kind 'image'")
-            if asset.get("aspect_ratio") != "16:9":
-                errors.append(f"asset {aid}: extracted frame must explicitly declare 16:9")
+            if asset.get("aspect_ratio") not in allowed:
+                errors.append(f"asset {aid}: extracted frame must declare 16:9 or 9:16")
             if asset.get("frame_role") not in {"first_frame", "last_frame"}:
                 errors.append(f"asset {aid}: frame_role must be first_frame or last_frame")
             if not isinstance(frame_source, dict):
@@ -346,8 +352,8 @@ def validate_project(data: dict[str, Any], root: Path) -> list[str]:
         if not _number(offset) or offset < 0:
             errors.append(f"job {jid}: episode_start_seconds must be a non-negative number")
             offset = 0.0
-        if job.get("aspect_ratio") != "16:9":
-            errors.append(f"job {jid}: aspect_ratio must be '16:9'")
+        if job.get("aspect_ratio") not in allowed:
+            errors.append(f"job {jid}: aspect_ratio must be '16:9' or '9:16'")
         if not job.get("prompt_version"):
             errors.append(f"job {jid}: prompt_version is required")
         prompt_path = _readable_file(root, job.get("compiled_prompt_path"), f"job {jid} compiled_prompt_path", errors, required=stage == "submit")
@@ -423,8 +429,12 @@ def validate_project(data: dict[str, Any], root: Path) -> list[str]:
                 if asset.get("status") != "approved":
                     errors.append(f"job {jid}: referenced asset {item['asset_id']} must be approved for submit")
                 _readable_file(root, asset.get("path"), f"job {jid} input asset {item['asset_id']}", errors)
-                if kind == "image" and asset.get("aspect_ratio") != "16:9":
-                    errors.append(f"job {jid}: referenced image {item['asset_id']} must explicitly declare 16:9")
+                if kind == "image" and asset.get("asset_role") != "identity":
+                    ar = asset.get("aspect_ratio")
+                    if ar not in allowed:
+                        errors.append(f"job {jid}: referenced image {item['asset_id']} must declare 16:9 or 9:16")
+                    elif job.get("aspect_ratio") in allowed and ar != job.get("aspect_ratio"):
+                        errors.append(f"job {jid}: referenced image {item['asset_id']} aspect {ar} != job {job.get('aspect_ratio')}")
                 if asset.get("frame_source") is not None and asset.get("status") != "approved":
                     errors.append(f"job {jid}: extracted frame {item['asset_id']} must be approved before submit")
         expected_roles = {
@@ -776,15 +786,20 @@ def main() -> int:
         sys.path.insert(0, str(skill_root.parent))
         sys.path.insert(0, str(skill_root))
         try:
-            from core.lib.guards_channel import check
+            from core.lib.channel import file_hash
+            from core.lib.guards_channel import apply_lock_checks
         except ImportError:
-            from _core.lib.guards_channel import check  # type: ignore
+            from _core.lib.channel import file_hash  # type: ignore
+            from _core.lib.guards_channel import apply_lock_checks  # type: ignore
         lock = json.loads(lock_path.read_text(encoding="utf-8"))
-        if (lock.get("effective") or {}).get("conflict"):
-            errors.append(f"G-CH: aspect/capability conflict {lock['effective']['conflict']}")
-        for job in data.get("jobs") or []:
-            if isinstance(job, dict):
-                errors.extend(check(_prompt_text_for_job(root, job), job, lock))
+        errors.extend(
+            apply_lock_checks(
+                data,
+                lock,
+                lambda job: _prompt_text_for_job(root, job),
+                project_hash=file_hash(args.project_json),
+            )
+        )
     elif data.get("stage") == "submit":
         errors.append("submit requires effective-capability.lock.json (run channel interview first)")
     if errors:

@@ -3,7 +3,7 @@
   "source": "skill-H3 official-h3-conformance + validate_project.py constants",
   "checked_at": "2026-10-18",
   "duration_seconds": { "min": 4, "max": 15, "integer_only": false },
-  "aspect_ratios": ["16:9"],
+  "aspect_ratios": ["16:9", "9:16"],
   "modes": ["T2VA", "I2VA", "L2VA", "FL2VA", "Ref2VA"],
   "reference_inputs": { "image": 9, "video": 3, "audio": 3, "total": 12 },
   "frame_anchors": { "first": true, "last": true, "first_last": true },

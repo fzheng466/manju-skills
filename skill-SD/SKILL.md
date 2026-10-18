@@ -1,15 +1,15 @@
 ---
 name: seedance-manju
-description: "16:9横屏漫剧 Seedance 2.0/2.5 全流程（2026-10 优化版）。从大纲到资产图、分镜、Seedance 提示词；也可从已冻结的 H3 导演谱转编译（不要从 H3 成品文本硬翻）。用户说走 Seedance、SD 2.0、SD 2.5、$seedance-manju、最新 SD skill 时使用。第一步必须渠道面谈；2.5 的 30 秒/50 参考图等数字未经渠道核实不得当硬限制。"
+description: "漫剧 Seedance 2.0/2.5 全流程（2026-10 优化版，支持 16:9 与 9:16）。从大纲到资产图、分镜、Seedance 提示词；也可从已冻结的 H3 导演谱转编译。用户说走 Seedance、SD、$seedance-manju、最新 SD skill 时使用。开场第一问锁定交付画幅，再做渠道面谈；2.5 的 30 秒/50 参考图等数字未经渠道核实不得当硬限制。"
 metadata:
   version: "2.0.0"
 ---
 
 # Seedance 漫剧制作
 
-## 第一步：渠道面谈（强制）
+## 第一步：先锁画幅，再面谈渠道（强制）
 
-写 Seedance 提示词之前：读 `_core/references/channel/interview.md`（或仓库 `core/...`），锁定渠道，生效能力 = 当前版本 `models/seedance-2.0.baseline.json` 或 `models/seedance-2.5.baseline.json` ∩ 渠道档案 ∩ 项目约束。预览用 `_core/lib/adapt.py`。确认后写 lock，再编译。
+写资产图或 Seedance 提示词之前：读 `_core/references/channel/interview.md` 与 `_core/references/assets/aspect-tracks.md`。第一问锁定 16:9 / 9:16 / 两条都要。再选渠道。一条线渠道不支持该画幅时只暂停该线。生成 lock：`python -m core.lib.lock --project project.json --channel <id> --baseline models/seedance-2.0.baseline.json --out effective-capability.lock.json`（2.5 换对应 baseline）。提交前：`python scripts/validate_project.py project.json --lock effective-capability.lock.json`。
 
 从 H3 复用同一素材时：中性导演谱才是输入；映射表 `references/transpile/field-map.md`；风格层 `references/aesthetic/`。禁止把 `<d>` `(Sx)` `T2VA` 带进 Seedance 正文。
 
@@ -17,11 +17,11 @@ metadata:
 
 ## 目标与隔离
 
-本技能服务 Seedance 2.0 或 Seedance 2.5 的 16:9 漫剧制作。用户只说“做漫剧/跑总流程”且未指定路线时，第一步询问“本次走 Seedance 2.0、Seedance 2.5 还是 MiniMax H3？”并等待回答；未回答前可整理材料，不能写视频投喂词或调用。如果用户选择MiniMax H3，停止此流程并转到 `$minimax-h3-manju`，不得在此生成H3内容。用户明确指定Seedance版本或本项目本轮已锁定版本时，直接记录，不重复询问。一个项目和job只能使用一个`model_profile`；版本切换须从模型无关剧本/分镜重新编译，禁止只替换名称或自动回退。
+本技能服务 Seedance 2.0 或 Seedance 2.5 的漫剧制作，交付画幅由开场第一问锁定（16:9、9:16 或两条都要）。用户只说“做漫剧/跑总流程”且未指定路线时，第一步询问“本次走 Seedance 2.0、Seedance 2.5 还是 MiniMax H3？”并等待回答；未回答前可整理材料，不能写视频投喂词或调用。如果用户选择MiniMax H3，停止此流程并转到 `$minimax-h3-manju`，不得在此生成H3内容。用户明确指定Seedance版本或本项目本轮已锁定版本时，直接记录，不重复询问。一个项目和job只能使用一个`model_profile`；版本切换须从模型无关剧本/分镜重新编译，禁止只替换名称或自动回退。
 
 MiniMax H3 是另一条独立技能。用户选择 H3 时提示 `$minimax-h3-manju`；不得在本文件输出 H3 的 T2VA/Ref2VA、`(Sx)`、`<d>`、H3配额或字段。
 
-所有人物板、道具/场景资产、分镜构图和视频输出固定 16:9。人物默认一人一张四视图板：左侧超大正面胸像，右侧并排正面全身、45°侧向全身、背面全身；严禁默认扩成多张头像、九宫格或表情板。只有用户明确需要或单张图确实无法表达结构时才增加资产。
+人物身份四视图可跨画幅共用；构图资产、分镜构图和视频输出按交付线画幅生成（16:9 / 9:16）。人物默认一人一张四视图板：左侧超大正面胸像，右侧并排正面全身、45°侧向全身、背面全身；严禁默认扩成多张头像、九宫格或表情板。只有用户明确需要或单张图确实无法表达结构时才增加资产。规则见 `_core/references/assets/aspect-tracks.md`。
 
 ## 执行原则
 
@@ -31,13 +31,13 @@ MiniMax H3 是另一条独立技能。用户选择 H3 时提示 `$minimax-h3-man
 - 图像提示词、视频提示词、平台请求、已提交任务、生成媒体、审核通过和发布批准是不同产物状态。
 - 运行时以当前provider/model_id的文档和工具schema核对模式、时长、素材角色、数量、比例、声音支持与参数。未核实的“官方”社区说法不写成接口事实；schema未知时只交文本草稿。
 - 只为高复用、身份敏感、空间复杂或连续性风险准备参考图。复杂动作先用可审阅的文字动作链和状态表排查因果，再按镜号局部修复；不默认生成多格故事板图片。玄幻仙侠武打按 references/xianxia-martial-action-prompting.md 编写高细节提示词。
-- 测试隔离：凡是测试——单提示词试跑、单元测试、资产生图测试、全流程测试及其输入副本、输出、抽帧、日志和报告——统一放在 `E:\seedance-text-push\` 下，每个测试建立独立子目录，目录名格式为 `YYYYMMDD-HHmmss_<kind>_<slug>`（kind 如 `prompt`、`asset`、`pipeline`、`unit`）。测试产物不写入真实项目目录、不写入技能仓库；真实项目运行时也绝不在项目目录内创建测试内容。测试目录与路径细则见 P5。
+- 测试隔离：凡是测试——单提示词试跑、单元测试、资产生图测试、全流程测试及其输入副本、输出、抽帧、日志和报告——统一放在 `$MANJU_HOME/test-runs/`（默认 `~/.manju/test-runs/`）下，每个测试建立独立子目录，目录名格式为 `YYYYMMDD-HHmmss_<kind>_<slug>`（kind 如 `prompt`、`asset`、`pipeline`、`unit`）。测试产物不写入真实项目目录、不写入技能仓库；真实项目运行时也绝不在项目目录内创建测试内容。测试目录与路径细则见 P5。
 
 ## 制作流程
 
 ### P0 立项与模型锁
 
-记录本轮任务范围、`seedance-2.0`或`seedance-2.5`、16:9、题材/风格、语言、目标时长、输出位置、生成授权、费用与返修预算、已给文本/图像/视频/音频。只有用户明确要求对指定job ID执行生成并确认预算上限，才记录生成授权；“跑完整流程”或索要提示词不等于允许提交。不能推断但会改变走法的关键选项只问一次。任何模型参数之前确认它属于当前版本和当前接入。
+记录本轮任务范围、`seedance-2.0`或`seedance-2.5`、交付画幅（16:9 / 9:16 / 两条都要）、题材/风格、语言、目标时长、输出位置、生成授权、费用与返修预算、已给文本/图像/视频/音频。只有用户明确要求对指定job ID执行生成并确认预算上限，才记录生成授权；“跑完整流程”或索要提示词不等于允许提交。不能推断但会改变走法的关键选项只问一次。任何模型参数之前确认它属于当前版本和当前接入。
 
 ### P1 故事、剧本与诊断
 
@@ -51,9 +51,9 @@ MiniMax H3 是另一条独立技能。用户选择 H3 时提示 `$minimax-h3-man
 
 服饰槽位按题材分派：明确玄幻修仙、仙侠或修真时读取 `references/xianxia-manju-costume-library.md`，都市/现代题材读取 `references/modern-manju-costume-library.md`，均按廓形、面料、层搭、露肤、外层、鞋履、腿部层、饰品的槽位组合并满足结构层差异化硬约束；玄幻修仙主角的武器与法器读取 `references/xianxia-hero-artifacts.md`，按器物等级与三层签名递进设计。全部人物造型定稿后，按 `references/character-styling-review.md` 执行“读取适用库→整套方案比较→唯一造型记录→完整提示词→审美与冲突审核”，并核对最终四视图提示词与造型记录一致。
 
-场景依 `references/visual-assets.md` 默认制作一张16:9四向基准板，实际视频取对应方向单视图；按“家族→区域→固定结构→状态变体→实际机位”组织；道具按结构比例、握持方式、材质、状态变化登记。只有真实查看过图才填“已核验”；参考图注明控制用途及不控制的内容。资产目录记录 ID、版本、来源、父版本、画幅、尺寸、哈希/路径、状态和镜头用途。
+场景依 `references/visual-assets.md` 默认制作一张四向基准板（结构可按主线画幅），实际视频取对应方向单视图；9:16 从该格裁中心竖条或单独出竖幅场景图，禁止拉伸。按“家族→区域→固定结构→状态变体→实际机位”组织；道具按结构比例、握持方式、材质、状态变化登记。只有真实查看过图才填“已核验”；参考图注明控制用途及不控制的内容。资产目录记录 ID、版本、来源、父版本、画幅、尺寸、哈希/路径、状态和镜头用途。
 
-全部资产提示词定稿后，用户一句“开始生图/按清单生图”即可启动逐张实际生成，不要求重复粘贴提示词。每次仅生成一张16:9资产图；参考图绑定依据身份/结构连续性自主判断，并在调用前告知参考资产与用途。每张生成后展示结果、等待用户确认，再进入下一张。费用、失败重试和禁止轮询规则见本技能自有副本 `references/sequential-asset-generation.md`；不得批量并行、轮询或自动重试。
+全部资产提示词定稿后，用户一句“开始生图/按清单生图”即可启动逐张实际生成，不要求重复粘贴提示词。每次仅生成一张当前交付线画幅的资产图；参考图绑定依据身份/结构连续性自主判断，并在调用前告知参考资产与用途。每张生成后展示结果、等待用户确认，再进入下一张。费用、失败重试和禁止轮询规则见本技能自有副本 `references/sequential-asset-generation.md`；不得批量并行、轮询或自动重试。
 
 ### P3 导演分镜与动作设计
 
@@ -77,11 +77,12 @@ MiniMax H3 是另一条独立技能。用户选择 H3 时提示 `$minimax-h3-man
 长项目用 `project.json` 记录 manifest。调用前运行：
 
 ```powershell
-python scripts/validate_project.py path\to\project.json
+python -m core.lib.lock --project path\to\project.json --channel <id> --baseline models\seedance-2.0.baseline.json --out path\to\effective-capability.lock.json
+python scripts/validate_project.py path\to\project.json --lock path\to\effective-capability.lock.json
 python -m unittest discover -s scripts -p "test_*.py"
 ```
 
-测试隔离规则：单提示词试跑、单元测试、资产生图测试、全流程测试及其输入副本、输出、抽帧、日志和报告，一律输出到 `E:\seedance-text-push\YYYYMMDD-HHmmss_<kind>_<slug>\`；`kind` 取 `prompt`（提示词试跑）、`asset`（资产生图测试）、`pipeline`（全流程测试）、`unit`（单元测试/校验器测试）。测试运行日志和生成的样例写入该子目录的 `99_logs\`，测试项目清单与测试提示词放在同级 `input\`，生成媒体放 `output\`。严禁把测试产物写入真实项目目录或技能仓库；真实项目运行时也绝不在项目目录内创建任何测试内容。正式项目的 manifest 校验不在此列，仍针对项目自身的 `project.json` 执行。
+测试隔离规则：单提示词试跑、单元测试、资产生图测试、全流程测试及其输入副本、输出、抽帧、日志和报告，一律输出到 `$MANJU_HOME/test-runs/YYYYMMDD-HHmmss_<kind>_<slug>/`；`kind` 取 `prompt`（提示词试跑）、`asset`（资产生图测试）、`pipeline`（全流程测试）、`unit`（单元测试/校验器测试）。测试运行日志和生成的样例写入该子目录的 `99_logs\`，测试项目清单与测试提示词放在同级 `input\`，生成媒体放 `output\`。严禁把测试产物写入真实项目目录或技能仓库；真实项目运行时也绝不在项目目录内创建任何测试内容。正式项目的 manifest 校验不在此列，仍针对项目自身的 `project.json` 执行。
 
 `draft`只验证制作计划和版本内结构；任何能力快照都不能作为当前接口的硬限制。`submit`必须有当前接入的已核验 capability 记录（含最短/最长时长、比例、输入类型与声音能力）、真实文件、实际槽位，以及用户明确授权且与提交job ID完全一致的范围和预算上限。授权或能力记录未知时不提交。2.0和2.5的时长及素材基线分别记录在对应参考文件，逐次调用前复核；单集时长与模型生成任务时长分开管理。内容长于当前单任务上限时按语义与动作阶段拆组，保留台词和段缝状态，不切换模型。对白/音色表演原则见 `references/voice-performance-continuity.md`；只有当前版本和服务支持时才使用原生声音输入/语法。玄幻、异能或规则异常特效可读 `references/vfx-event-design.md`，不将特效系统概念冒充模型的底层能力。资产图生成独立执行单张费用门、逐张用户确认、无轮询和无自动重试规则，见 `references/sequential-asset-generation.md`；视频生成授权不自动扩大到资产图或反之。
 
@@ -89,7 +90,7 @@ python -m unittest discover -s scripts -p "test_*.py"
 
 ### P6 剪辑、声音与交付
 
-先只组装已审镜头，明确转场、声音桥和连续性接缝。对白、OS/VO、环境、动作音、画内音乐、画外配乐与字幕分轨处理；不要把视频抽出的混音误称为干净人声，也不默认跨段音乐连续。完成后核验总时长、16:9、画面与声音、字幕、片段顺序和端点；技术检查与人工内容审阅分开记录。交付文件、实际规格、审核状态、未完成项和修订记录。详细门槛见 `references/quality-and-release.md`。
+先只组装已审镜头，明确转场、声音桥和连续性接缝。对白、OS/VO、环境、动作音、画内音乐、画外配乐与字幕分轨处理；不要把视频抽出的混音误称为干净人声，也不默认跨段音乐连续。完成后核验总时长、该交付线画幅（16:9 或 9:16）、画面与声音、字幕、片段顺序和端点；技术检查与人工内容审阅分开记录。交付文件、实际规格、审核状态、未完成项和修订记录。详细门槛见 `references/quality-and-release.md`。
 
 ## 项目目录与资源导航
 

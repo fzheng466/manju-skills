@@ -17,7 +17,7 @@ def sha256(p: Path) -> str:
 
 
 def main() -> None:
-    files = [p for p in CORE.rglob("*") if p.is_file()]
+    files = [p for p in CORE.rglob("*") if p.is_file() and "__pycache__" not in p.parts and p.suffix != ".pyc"]
     lock = {
         "core_version": (CORE / "VERSION").read_text(encoding="utf-8").strip(),
         "files": {str(p.relative_to(CORE)).replace("\\", "/"): sha256(p) for p in files},
@@ -26,7 +26,7 @@ def main() -> None:
         dest = skill / "_core"
         if dest.exists():
             shutil.rmtree(dest)
-        shutil.copytree(CORE, dest)
+        shutil.copytree(CORE, dest, ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
         (skill / "core.lock").write_text(json.dumps(lock, indent=2), encoding="utf-8")
         print(f"vendored {len(files)} files -> {dest}")
 

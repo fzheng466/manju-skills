@@ -3,7 +3,7 @@
   "source": "skill-SD references/versions/2.5.md evidence section; unverified marketing numbers live in research-basis.md",
   "checked_at": "2026-10-18",
   "duration_seconds": { "min": 4, "max": 15, "integer_only": true, "status": "declared", "unverified_candidate_max": 30 },
-  "aspect_ratios": ["16:9"],
+  "aspect_ratios": ["16:9", "9:16"],
   "modes": ["text_only", "reference_set", "first_last_frame"],
   "reference_inputs": { "image": 9, "video": 3, "audio": 3, "total": 12, "status": "declared", "unverified_candidate_image": 50 },
   "frame_anchors": { "first": true, "last": true, "last_alone": false },

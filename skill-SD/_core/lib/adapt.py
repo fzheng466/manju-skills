@@ -53,13 +53,15 @@ def _legal_splits(duration: float, min_s: float, max_s: float) -> tuple[list[dic
 
 def preview(job: dict[str, Any], effective: dict[str, Any]) -> dict[str, Any]:
     conflict = effective.get("conflict")
-    if conflict and conflict.get("type") == "aspect_ratio":
+    status = effective.get("status")
+    if status == "unsupported_by_channel" or (conflict and conflict.get("type") == "aspect_ratio"):
         return {
             "blocked": True,
+            "track": effective.get("track_id"),
             "rule": "R-AR-01",
-            "message": f"project {conflict.get('project')} not in channel {conflict.get('channel')}",
-            "choices": ["switch_channel", "reproject_aspect", "vertical_derivative"],
-            "actions": [],
+            "message": f"track {effective.get('track_id')} aspect {effective.get('aspect')} not in channel {conflict.get('channel') if conflict else []}",
+            "choices": ["switch_channel", "wait", "derivative"],
+            "actions": ["R-AR-01: pause this track only; other tracks continue"],
             "splits": [],
         }
 

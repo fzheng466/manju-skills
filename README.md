@@ -13,7 +13,7 @@
 
 ## 调用时第一步
 
-渠道面谈 → 生效能力（模型上限 ∩ 渠道 ∩ 项目）→ 编译预览 → 你确认 → 才写提示词。详见 `core/references/channel/interview.md`。
+先问交付画幅（16:9 / 9:16 / 两条都要），再做渠道面谈 → 按交付线算生效能力 → 编译预览 → 你确认 → 才写提示词和资产图。详见 `core/references/channel/interview.md` 与 `core/references/assets/aspect-tracks.md`。
 
 示例渠道档案：`examples/channels/proxy-a-h3.json`，复制到 `%USERPROFILE%\.manju\channels\`。
 
@@ -28,5 +28,6 @@
 - H3→SD 映射表与风格层（从导演谱转，不硬翻 H3 文本）
 - 战甲/仙袍/流苏动漫 3D 示例提示词
 - 渠道面谈与 10s/2 图等自适应规则
+- 16:9 与 9:16 作为一等交付线：一条线渠道不支持时只暂停该线，不改另一条已定稿资产
 
 Opus 原报告在：`D:\ai\逆向工程的开发教程\_3b_reverse\ai_drama_skill\_opus_answers\`
