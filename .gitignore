@@ -9,3 +9,10 @@ effective-capability.lock.json
 **/*apikey*
 .env
 .env.*
+cases/local/
+cases/**/media/
+cases/**/*.mp4
+cases/**/*.png
+cases/**/*.jpg
+cases/**/request.json
+07_qa/gch9-warnings.json

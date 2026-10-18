@@ -62,6 +62,10 @@ class PostTests(unittest.TestCase):
         self.project["jobs"][0]["output_path"] = "media/j1.mp4"
         text2, _ = edl_text(self.project, "L")
         self.assertIn("FROM CLIP NAME: media/j1.mp4", text2)
+        self.project["jobs"][0]["output_path"] = ""
+        strict_text, strict_warns = edl_text(self.project, "L", strict=True)
+        self.assertTrue(any("no archived video path" in w for w in strict_warns))
+        self.assertNotIn("001", strict_text)
 
     def test_audio_plan_reconstruct(self):
         plan = audio_plan(self.project)
@@ -127,6 +131,23 @@ class ShotQualityTightenTests(unittest.TestCase):
         }
         err2 = check_job(closeup, "9:16竖屏")
         self.assertTrue(any("SHOT-AR" in e and "中近景" in e for e in err2))
+        too_big = {
+            "aspect_ratio": "16:9",
+            "shots": [
+                {
+                    "beats": [
+                        {
+                            "expression": "眉心收紧",
+                            "visible_action": "站着",
+                            "camera": {"framing": "远景"},
+                            "positions": [{"actor_id": "A", "screen_height_percent": 80}],
+                        }
+                    ]
+                }
+            ],
+        }
+        err3 = check_job(too_big, "16:9横屏")
+        self.assertTrue(any("too large" in e for e in err3))
 
 
 if __name__ == "__main__":

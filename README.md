@@ -31,5 +31,6 @@
 - 16:9 与 9:16 作为一等交付线：一条线渠道不支持时只暂停该线，不改另一条已定稿资产
 - 资产图门（战甲/仙袍/法器结构计数）、镜头表情/运镜门、按 beat/台词切段、H3→Seedance 转换脚本
 - 男女身份隔离：`presentation_sex` + `owner_id`，男装/女装/道具不得串角色
-- 后期执行器：`python -m core.lib.post audio-plan|srt|edl`
+- 后期执行器：`python -m core.lib.post audio-plan|srt|edl`（交付用 `--strict`）
+- 实测案例模板：`cases/_template/`；媒体和密钥不进 Git
 - 渠道能力回写只写本机：`python -m core.lib.channel_status record --channel <id> ...`

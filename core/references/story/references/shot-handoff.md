@@ -14,3 +14,5 @@
 | 末态 | 位置、手/道具、伤损、能力、光线、环境动态和声音尾部 |
 
 从剧本到分镜只传递已发生或已锁定的事实。场景、人物和道具资产由资产流程核对；没有真实资产或视频时不得声称画面已经锁定。
+
+JSON 交接字段与 `project.json` schema 1.2 对齐：shot 用 `id`（可用 `shot_id` 作别名）、对白用 `dialogue[].utterance_id` 指向顶层 `utterances[]`。schema 见 `core/schemas/handoff.schema.json`。

@@ -824,14 +824,15 @@ def main() -> int:
         )
         errors.extend(lock_errors)
         if lock_warns:
-            record = root / "07_qa" / "gch9-warnings.json"
-            record.parent.mkdir(parents=True, exist_ok=True)
-            record.write_text(
-                json.dumps({"warnings": lock_warns, "lock": str(lock_path)}, ensure_ascii=False, indent=2),
-                encoding="utf-8",
-            )
             for w in lock_warns:
                 print(f"WARN: {w}")
+            if data.get("stage") == "submit":
+                record = root / "07_qa" / "gch9-warnings.json"
+                record.parent.mkdir(parents=True, exist_ok=True)
+                record.write_text(
+                    json.dumps({"warnings": lock_warns, "lock": str(lock_path)}, ensure_ascii=False, indent=2),
+                    encoding="utf-8",
+                )
     elif data.get("stage") == "submit":
         errors.append("submit requires effective-capability.lock.json (run channel interview first)")
     if errors:

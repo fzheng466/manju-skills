@@ -100,7 +100,7 @@ def srt_text(project: dict[str, Any], track: str | None = None) -> str:
     return "\n".join(blocks)
 
 
-def edl_text(project: dict[str, Any], track: str | None = None) -> tuple[str, list[str]]:
+def edl_text(project: dict[str, Any], track: str | None = None, *, strict: bool = False) -> tuple[str, list[str]]:
     warns: list[str] = []
     lines = ["TITLE: manju", "FCM: NON-DROP FRAME", ""]
     rec = 1
@@ -130,6 +130,8 @@ def edl_text(project: dict[str, Any], track: str | None = None) -> tuple[str, li
                 break
         if not path:
             warns.append(f"job {job.get('id')} has no archived video path")
+            if strict:
+                continue
         rec_in = _ts(start, srt=False)
         rec_out = _ts(start + dur, srt=False)
         src_in = _ts(0, srt=False)
@@ -140,6 +142,8 @@ def edl_text(project: dict[str, Any], track: str | None = None) -> tuple[str, li
             lines.append(f"* FROM CLIP NAME: {path}")
         rec += 1
         prev_end = start + dur
+    if strict and any("no archived video path" in w for w in warns):
+        warns.append("strict: missing clip paths")
     return "\n".join(lines) + "\n", warns
 
 
@@ -149,6 +153,7 @@ def main() -> int:
     p.add_argument("--project", type=Path, required=True)
     p.add_argument("--track", default=None)
     p.add_argument("--out", type=Path, required=True)
+    p.add_argument("--strict", action="store_true", help="EDL: skip jobs without media; exit 1 if any missing")
     args = p.parse_args()
     project = json.loads(args.project.read_text(encoding="utf-8"))
     args.out.parent.mkdir(parents=True, exist_ok=True)
@@ -157,10 +162,13 @@ def main() -> int:
     elif args.cmd == "srt":
         args.out.write_text(srt_text(project, args.track), encoding="utf-8")
     else:
-        text, warns = edl_text(project, args.track)
+        text, warns = edl_text(project, args.track, strict=args.strict)
         args.out.write_text(text, encoding="utf-8")
         for w in warns:
             print(f"WARN: {w}")
+        if args.strict and any("no archived video path" in w or w.startswith("strict:") for w in warns):
+            print(f"wrote {args.out}")
+            return 1
     print(f"wrote {args.out}")
     return 0
 

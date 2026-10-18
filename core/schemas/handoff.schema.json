@@ -1,26 +1,102 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Script-to-director handoff (schema 1.2 aligned)",
+  "title": "Script-to-director handoff (project.json schema 1.2 field names)",
   "type": "object",
   "required": ["schema_version", "episode_id", "shots"],
   "properties": {
-    "schema_version": { "const": "1.2-handoff" },
+    "schema_version": { "const": "1.2" },
     "episode_id": { "type": "string" },
+    "project_id": { "type": "string" },
     "language": { "type": "string" },
     "target_duration_seconds": { "type": "number" },
+    "primary_track": { "type": "string" },
+    "deliverables": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["track_id", "aspect"],
+        "properties": {
+          "track_id": { "type": "string" },
+          "aspect": { "enum": ["16:9", "9:16"] }
+        }
+      }
+    },
+    "characters": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["character_id", "presentation_sex"],
+        "properties": {
+          "character_id": { "type": "string" },
+          "name": { "type": "string" },
+          "presentation_sex": { "enum": ["male", "female"] },
+          "speaker_id": { "type": "string" }
+        }
+      }
+    },
+    "utterances": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["utterance_id", "text", "speaker_id"],
+        "properties": {
+          "utterance_id": { "type": "string" },
+          "text": { "type": "string" },
+          "speaker_id": { "type": "string" },
+          "kind": { "type": "string" }
+        }
+      }
+    },
     "shots": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["shot_id", "beats"],
+        "required": ["id", "beats"],
         "properties": {
-          "shot_id": { "type": "string" },
+          "id": { "type": "string" },
+          "shot_id": { "type": "string", "description": "legacy alias of id; prefer id" },
           "start_seconds": { "type": ["number", "null"] },
           "end_seconds": { "type": ["number", "null"] },
-          "beats": { "type": "array" },
+          "purpose": { "type": "string" },
+          "main_action": { "type": "string" },
+          "beats": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "start_seconds": { "type": "number" },
+                "end_seconds": { "type": "number" },
+                "focus": { "type": "string" },
+                "visible_action": { "type": "string" },
+                "expression": { "type": "string" },
+                "camera": { "type": "object" },
+                "positions": { "type": "array" },
+                "framing": {
+                  "type": "object",
+                  "properties": {
+                    "L": { "type": "object" },
+                    "P": { "type": "object" }
+                  }
+                }
+              }
+            }
+          },
           "positions": { "type": "array" },
           "entrance_order": { "type": "array" },
-          "utterances": { "type": "array" },
+          "dialogue": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "utterance_id": { "type": "string" },
+                "speaker_id": { "type": "string" },
+                "text": { "type": "string" },
+                "start_seconds": { "type": "number" },
+                "end_seconds": { "type": "number" }
+              }
+            }
+          },
+          "utterances": { "type": "array", "description": "legacy; prefer dialogue[].utterance_id" },
           "voice_profile_id": { "type": ["string", "null"] },
           "genre_card_id": { "type": ["string", "null"] },
           "pending_director": { "type": "array", "items": { "type": "string" } }

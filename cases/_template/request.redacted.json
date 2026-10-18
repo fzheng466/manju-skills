@@ -1,0 +1,9 @@
+{
+  "channel_id": "local-id-only",
+  "model_profile": "minimax-h3",
+  "job_id": "JOB001",
+  "duration_seconds": 8,
+  "aspect": "16:9",
+  "spent": null,
+  "notes": "禁止写入 URL、密钥、完整账号"
+}

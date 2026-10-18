@@ -1,7 +1,7 @@
 {
-  "core_version": "1.5.2",
+  "core_version": "1.5.3",
   "files": {
-    "VERSION": "ded1b601e81d31ca1f65c4f3ccf2ebd7992b6390e37bc2a86f3837282f1e00cf",
+    "VERSION": "c03e3824001f39b9518249b8d6522422fc4de7227e12a568c0164662b03b7758",
     "__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "lib/adapt.py": "03f968a58da49a56890a183e5d01d68fda4fb3b152b1b0b277dc391e91333698",
     "lib/asset_gen.py": "eeee7af80abaf6f90106013dfa9a5f223f6b4a5981c1e716263da10d0bdb0a85",
@@ -11,18 +11,18 @@
     "lib/guards_channel.py": "f53e37f48a4ac17e74e531f40370e88960f842629e3abd3cc417c4f9ea412caf",
     "lib/identity.py": "c24677fd19c448d96531a7f03a27de78105a6c8dff1da58f651343e6d5d8ea19",
     "lib/lock.py": "aede16327b3f8bca74fd57c23d165df39a12aa7131080de9eab756cffac11d27",
-    "lib/post.py": "3936cd014b4c31721ce1b1f180dd2bbbf224c5a3b0af97c3718e2b9e504076c8",
-    "lib/shot_quality.py": "07855e09a82d9583446f68b43397a949997f82c5638703b614b5bdec634b740f",
+    "lib/post.py": "15bad6ccf76f15bcb187f64d71b7535c7d841614e0993cd5a192d33c36888744",
+    "lib/shot_quality.py": "c12e3ce5973073d381340040fcd868a169481caba99a2b3659d8715cda55ecf0",
     "lib/transpile.py": "ca9564dcf5ad17f931bc1bba9bf3869db9db4028fbe888503b74eef197e5bce1",
     "lib/validate_lock.py": "3342515117c3fec024df9dbaadeab992526e4ef72f3963bba0797e3791b1a55f",
     "lib/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "schemas/channel-profile.schema.json": "e76e95f4d36106d392d5508c68d7a66ed403e33b68aced1117f67e848c3a40ea",
     "schemas/effective-capability.schema.json": "753cad407ec73c21134ec431a17358b4afbbe06fbc9a80143dd8cd0d93cb0858",
-    "schemas/handoff.schema.json": "806c68c54cf9d30246074258e21fef3d60fc865c6ea7677f1f6f01a9681df83e",
+    "schemas/handoff.schema.json": "af8736360648c7c3b37cf59d6c0878e25a5d48385417c569fe5a7ad0cba526dc",
     "schemas/model-baseline.schema.json": "73de0be78060289c5d1a31c1dc83c75de84e38a985ca70fc1fe31b8b643d482c",
     "tests/test_adapt.py": "9a9cdebf50cf23fea46f9859e99d882241c80fb4b60600f3a5b61e15ef93ddf3",
     "tests/test_asset_gen.py": "7f5f058a7e8b6b0c36973281cbc21e46154d1a34e44172dd88939188bee16efb",
-    "tests/test_post.py": "5f9e5e99d43bc89f536212e04dd4eec364eb45bfdce2c76e1c1391bd53b8acef",
+    "tests/test_post.py": "b33fcfa92c232b3e96c74793351d98798bf0dba13643ffe429e5bc5201a32427",
     "tests/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "references/assets/anime-3d-asset-lexicon.md": "a842a2cdfe741b10ff2a21038d499a6650fd30b6e1bdaa21dc8573d6c4a6bd3b",
     "references/assets/aspect-tracks.md": "fb20654608544929198667d386b3c41ba05b72bf202d966dac38b87ee6263016",
@@ -39,6 +39,6 @@
     "references/story/references/research-basis.md": "a53813480c336a37e227920310f2fdb05e8889912292257f6a023bed139e119c",
     "references/story/references/script-review.md": "f90d69e1684b50fd75e660e40609c9267262d357cb6ea5ba150ba2b8fd241231",
     "references/story/references/series-development.md": "1c5b317d24086f90e835fd4dbef1749aa21a779f35ab724a65439e8f81228e6f",
-    "references/story/references/shot-handoff.md": "c95024793f0bcbaccc3a67aa3a1912dc6af90715f374f4cc193a566c389f3a04"
+    "references/story/references/shot-handoff.md": "b304caa4a86cacf7ac0216c9b6d1dd14e62ecb31ac13a73fc0ce1b75179a7158"
   }
 }

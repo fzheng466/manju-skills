@@ -1,0 +1,54 @@
+{
+  "schema_version": "1.2",
+  "episode_id": "EP001",
+  "project_id": "CASE_TEMPLATE",
+  "language": "zh",
+  "target_duration_seconds": 8,
+  "deliverables": [{"track_id": "L", "aspect": "16:9"}],
+  "primary_track": "L",
+  "characters": [
+    {
+      "character_id": "CHAR_A",
+      "name": "角色名",
+      "presentation_sex": "male",
+      "speaker_id": "CHAR_A"
+    }
+  ],
+  "utterances": [
+    {
+      "utterance_id": "U1",
+      "speaker_id": "CHAR_A",
+      "text": "原句。",
+      "kind": "dialogue"
+    }
+  ],
+  "shots": [
+    {
+      "id": "S1",
+      "start_seconds": 0,
+      "end_seconds": 8,
+      "purpose": "本镜观众新知道什么",
+      "main_action": "唯一主要可见动作",
+      "beats": [
+        {
+          "start_seconds": 0,
+          "end_seconds": 8,
+          "focus": "CHAR_A",
+          "visible_action": "触发-路径-结果",
+          "expression": "眉眼嘴之一如何变",
+          "camera": {"framing": "中景"},
+          "positions": [{"actor_id": "CHAR_A", "screen_height_percent": 50}]
+        }
+      ],
+      "dialogue": [
+        {
+          "utterance_id": "U1",
+          "speaker_id": "CHAR_A",
+          "text": "原句。",
+          "start_seconds": 2,
+          "end_seconds": 5
+        }
+      ]
+    }
+  ]
+}

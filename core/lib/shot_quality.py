@@ -42,6 +42,8 @@ def check_job(job: dict[str, Any], prompt_text: str = "") -> list[str]:
     scales: list[str] = []
     PORTRAIT_MIN = {"全身": 75, "中近景": 60, "中景": 50, "近景": 70, "特写": 80, "大远景": 8, "远景": 20}
     LANDSCAPE_MIN = {"全身": 65, "中近景": 45, "中景": 35, "近景": 55, "特写": 70, "大远景": 3, "远景": 10}
+    PORTRAIT_MAX = {"大远景": 22, "远景": 40, "全身": 95, "中景": 80, "中近景": 85, "近景": 95, "特写": 100}
+    LANDSCAPE_MAX = {"大远景": 18, "远景": 35, "全身": 90, "中景": 70, "中近景": 80, "近景": 90, "特写": 100}
     REGION = ("眉", "眼", "睑", "嘴", "唇", "颌", "呼吸", "肩", "喉")
     for si, shot in enumerate(job.get("shots") or []):
         if not isinstance(shot, dict):
@@ -78,17 +80,21 @@ def check_job(job: dict[str, Any], prompt_text: str = "") -> list[str]:
             framing = str(beat.get("viewpoint") or (cam_b or {}).get("framing") or beat.get("camera") or "")
             if framing:
                 scales.append(framing)
-            table = PORTRAIT_MIN if job.get("aspect_ratio") == "9:16" else LANDSCAPE_MIN
-            matched_key = next((key for key in sorted(table, key=len, reverse=True) if key in framing), None)
+            table_min = PORTRAIT_MIN if job.get("aspect_ratio") == "9:16" else LANDSCAPE_MIN
+            table_max = PORTRAIT_MAX if job.get("aspect_ratio") == "9:16" else LANDSCAPE_MAX
+            matched_key = next((key for key in sorted(table_min, key=len, reverse=True) if key in framing), None)
             for pos in beat.get("positions") or []:
                 if not isinstance(pos, dict):
                     continue
                 h = pos.get("screen_height_percent")
                 if not _number(h) or not matched_key:
                     continue
-                lo = table[matched_key]
+                lo = table_min[matched_key]
+                hi = table_max[matched_key]
                 if h < lo - 10:
                     errors.append(f"SHOT-AR: {framing} height {h}% too small for {job.get('aspect_ratio')} ({matched_key} min {lo})")
+                if h > hi + 10:
+                    errors.append(f"SHOT-AR: {framing} height {h}% too large for {job.get('aspect_ratio')} ({matched_key} max {hi})")
             action = str(beat.get("visible_action") or "")
             if action and "然后又" in action and "收势" not in action:
                 errors.append("SHOT-ACT: one beat packs two primary actions; split")
