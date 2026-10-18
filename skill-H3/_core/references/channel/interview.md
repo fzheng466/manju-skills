@@ -13,7 +13,7 @@
 effective[track] = model baseline ∩ channel ∩ that track's aspect
 ```
 
-档案：`$MANJU_HOME/channels/<id>.json`（默认 `~/.manju/channels`），不存密钥。
+档案只存在本机：`$MANJU_HOME/channels/<id>.json`（默认 `~/.manju/channels`）。**禁止把真实渠道、反代地址、密钥、账号写进仓库或推 GitHub。** 仓库 `examples/channels/` 只放字段模板。调用本 skill 时当场问操作员：渠道档案 ID、本机模型入口；操作员说「本地提供」就只读 `$MANJU_HOME`，不要猜、不要提交。
 
 ## 第 1 题（必问，单独一屏）
 
@@ -27,9 +27,11 @@ effective[track] = model baseline ∩ channel ∩ that track's aspect
 
 写入 `deliverables` + `primary_track`。**这一步不读渠道。**
 
-## 第 2 题：渠道
+## 第 2 题：渠道（只问本机，不写进 Git）
 
-已有档案：摘要卡显示 名称｜画幅｜最长时长｜参考图数（不含首尾帧）｜音频｜最后验证。问「仍然准确吗？」
+先问：「这次用哪份本机渠道档案？路径默认 `$MANJU_HOME/channels/<id>.json`。没有档案就现在填一张，仍只写本机。」
+
+已有档案：摘要卡显示 名称｜画幅｜最长时长｜参考图数（不含首尾帧）｜音频｜最后验证。问「仍然准确吗？」禁止把答案贴进仓库。
 
 新建则一张表：
 

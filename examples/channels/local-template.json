@@ -1,9 +1,9 @@
 {
   "schema_version": "1.0",
-  "channel_id": "proxy-a-h3",
-  "display_name": "反代A-H3",
-  "provider_kind": "reverse_proxy",
-  "notes": "示例：10秒、2张参考图、无音频。复制到 %USERPROFILE%\\.manju\\channels\\ 后改名使用。",
+  "channel_id": "local-template",
+  "display_name": "本机渠道模板（复制到 $MANJU_HOME/channels，不要提交真实渠道）",
+  "provider_kind": "local",
+  "notes": "字段模板。真实渠道/反代/密钥只放本机 $MANJU_HOME/channels/，禁止推 GitHub。",
   "created_at": "2026-10-18T00:00:00+08:00",
   "updated_at": "2026-10-18T00:00:00+08:00",
   "models": {

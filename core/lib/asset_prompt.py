@@ -39,7 +39,7 @@ def _has_any(text: str, needles: tuple[str, ...]) -> bool:
     return any(n in text for n in needles)
 
 
-def check_text(kind: str, text: str, aspect: str = "16:9") -> list[str]:
+def check_text(kind: str, text: str, aspect: str = "16:9", *, sex: str | None = None, character_id: str = "CHAR") -> list[str]:
     errors: list[str] = []
     body = text or ""
     if aspect == "16:9" and "9:16竖屏" in body and "16:9" not in body:
@@ -68,6 +68,10 @@ def check_text(kind: str, text: str, aspect: str = "16:9") -> list[str]:
             errors.append("ASSET-CHAR: tassel board must count strands, insertion point, hang length")
         if _has_any(body, ("战甲", "肩甲", "流苏", "飘带")) and not COUNT_RE.search(body):
             errors.append("ASSET-CHAR: 结构计数 must include a number (e.g. 肩甲4片 / 流苏3股 / 飘带2条)")
+        if sex:
+            from .identity import check_prompt_for_sex
+
+            errors.extend(check_prompt_for_sex(body, sex, character_id=character_id, kind="character"))
 
     if kind == "weapon":
         if not _has_any(body, ARTIFACT_SIG):
@@ -80,6 +84,10 @@ def check_text(kind: str, text: str, aspect: str = "16:9") -> list[str]:
             errors.append("ASSET-WPN: 9:16 weapon board should be 上主图 + 下细节窗")
         if re.search(r"发光|仙气", body) and not GLOW_OK_RE.search(body) and "光源" not in body:
             errors.append("ASSET-WPN: glow must name a structural source path (刃/槽/核/心), not wrap the whole object")
+        if sex:
+            from .identity import check_prompt_for_sex
+
+            errors.extend(check_prompt_for_sex(body, sex, character_id=character_id, kind="weapon"))
 
     if kind == "scene":
         if not _has_any(body, ("四向", "正向", "反向", "左侧向")):
@@ -94,9 +102,13 @@ def main() -> int:
     p.add_argument("--kind", required=True, choices=["character", "weapon", "scene"])
     p.add_argument("--aspect", default="16:9", choices=["16:9", "9:16"])
     p.add_argument("--file", type=Path, required=True)
+    p.add_argument("--sex", default=None, help="male|female — required for character/weapon identity lock")
+    p.add_argument("--character-id", default="CHAR")
     args = p.parse_args()
     text = args.file.read_text(encoding="utf-8")
-    errors = check_text(args.kind, text, args.aspect)
+    errors = check_text(args.kind, text, args.aspect, sex=args.sex, character_id=args.character_id)
+    if args.kind in {"character", "weapon"} and not args.sex:
+        errors.append("ID-SEX: pass --sex male|female before generating this board")
     if errors:
         for e in errors:
             print(f"FAIL: {e}")

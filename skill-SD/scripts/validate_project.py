@@ -116,6 +116,12 @@ def validate_project(data: dict[str, Any], root: Path) -> list[str]:
             errors.append(f"asset {aid}: invalid status")
         if asset.get("aspect_ratio") not in (None, "16:9", "9:16"):
             errors.append(f"asset {aid}: aspect_ratio must be 16:9 or 9:16 when specified")
+        if asset.get("kind") in {"character"} or asset.get("asset_role") == "identity":
+            if not (asset.get("presentation_sex") or asset.get("sex")):
+                errors.append(f"asset {aid}: identity board must lock presentation_sex male|female")
+        if asset.get("kind") in {"costume", "wardrobe", "prop", "weapon", "artifact"} or asset.get("asset_role") in {"wardrobe", "prop", "weapon"}:
+            if not asset.get("owner_id") and not asset.get("character_id"):
+                errors.append(f"asset {aid}: wardrobe/prop must set owner_id (never share across sexes)")
         if stage == "submit" and asset.get("status") in {"candidate", "approved"}:
             _readable_file(root, asset.get("path"), f"asset {aid}", errors)
         elif asset.get("status") == "approved" and asset.get("path"):
@@ -352,9 +358,12 @@ def validate_project(data: dict[str, Any], root: Path) -> list[str]:
         if str(skill_root) not in sys.path:
             sys.path.insert(0, str(skill_root))
         try:
+            from core.lib.identity import check_project as check_identity
             from core.lib.shot_quality import check_job
         except ImportError:
+            from _core.lib.identity import check_project as check_identity  # type: ignore
             from _core.lib.shot_quality import check_job  # type: ignore
+        errors.extend(check_identity(data))
         for job in jobs:
             if isinstance(job, dict):
                 errors.extend(check_job(job, _prompt_text_for_job(root, job)))

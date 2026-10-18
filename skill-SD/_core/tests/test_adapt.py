@@ -5,6 +5,7 @@ from core.lib.asset_prompt import check_text
 from core.lib.channel import merge_effective
 from core.lib.guards_channel import check, _max_time_in_text
 from core.lib.shot_quality import check_job, check_prompt
+from core.lib.identity import check_project, check_prompt_for_sex
 from core.lib.transpile import compile_prompt, reconstruct_dialogue
 
 
@@ -227,6 +228,39 @@ def test_asset_weapon_xianxia_needs_silhouette():
     assert check_text("weapon", good, "16:9") == []
     scene_cast = "16:9 四向 场景，女主站在门口"
     assert any("ASSET-SCN" in e for e in check_text("scene", scene_cast, "16:9"))
+
+
+def test_identity_blocks_female_wardrobe_on_male():
+    male_ok = (
+        "16:9横屏男性角色四视图。正面全身、45°侧面全身、背面全身。双手空置。"
+        "成年男性剑修，喉结可见，束冠，胸甲上下两片、肩甲4片。"
+    )
+    assert check_prompt_for_sex(male_ok, "male", character_id="SHEN") == []
+    mixed = male_ok + "抹胸高开衩，细跟高跟鞋与步摇。"
+    err = check_prompt_for_sex(mixed, "male", character_id="SHEN")
+    assert any("ID-MIX" in e for e in err)
+    female_ok = (
+        "16:9横屏女性角色四视图。正面全身、45°侧面全身、背面全身。双手空置。"
+        "成年女性宗门圣女，无喉结，广袖外袍与腰封。"
+    )
+    assert check_prompt_for_sex(female_ok, "female", character_id="LIN") == []
+    female_bad = female_ok + "喉结明显，胸肌块面。"
+    assert any("ID-MIX" in e for e in check_prompt_for_sex(female_bad, "female", character_id="LIN"))
+    project = {
+        "stage": "draft",
+        "characters": [
+            {"character_id": "SHEN_YAN", "name": "沈砚", "presentation_sex": "male"},
+            {"character_id": "LIN_WAN", "name": "林晚", "presentation_sex": "female"},
+        ],
+        "assets": [
+            {"asset_id": "WPN1", "kind": "weapon", "owner_id": "SHEN_YAN", "presentation_sex": "male", "prompt": "三叉戟剪影 握持点在缠柄"},
+            {"asset_id": "COS_BAD", "kind": "costume", "owner_id": "SHEN_YAN", "prompt": "抹胸高开衩步摇细跟"},
+        ],
+    }
+    perr = check_project(project)
+    assert any("ID-MIX" in e and "COS_BAD" in e for e in perr)
+    orphan = {"stage": "draft", "characters": [{"character_id": "SHEN_YAN", "presentation_sex": "male"}], "assets": [{"asset_id": "WPN2", "kind": "weapon", "prompt": "剑"}]}
+    assert any("ID-OWN" in e for e in check_project(orphan))
 
 
 def test_shot_rejects_vague_acting_and_stacked_moves():

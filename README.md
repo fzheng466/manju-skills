@@ -13,9 +13,9 @@
 
 ## 调用时第一步
 
-先问交付画幅（16:9 / 9:16 / 两条都要），再做渠道面谈 → 按交付线算生效能力 → 编译预览 → 你确认 → 才写提示词和资产图。详见 `core/references/channel/interview.md` 与 `core/references/assets/aspect-tracks.md`。
+先问交付画幅（16:9 / 9:16 / 两条都要），再问本机渠道档案（只读 `$MANJU_HOME/channels`，**真实渠道/密钥不进 GitHub**）→ 按交付线算生效能力 → 编译预览 → 你确认 → 才写提示词和资产图。人物卡必须锁 `presentation_sex`，服装/道具必须 `owner_id`，禁止男女资产串套。
 
-示例渠道档案：`examples/channels/proxy-a-h3.json`，复制到 `%USERPROFILE%\.manju\channels\`。
+字段模板：`examples/channels/local-template.json`，复制到本机 `$MANJU_HOME/channels/` 后改成你的入口。
 
 ## 大纲能不能扩写
 
@@ -30,5 +30,4 @@
 - 渠道面谈与 10s/2 图等自适应规则
 - 16:9 与 9:16 作为一等交付线：一条线渠道不支持时只暂停该线，不改另一条已定稿资产
 - 资产图门（战甲/仙袍/法器结构计数）、镜头表情/运镜门、按 beat/台词切段、H3→Seedance 转换脚本
-
-Opus 原报告在：`D:\ai\逆向工程的开发教程\_3b_reverse\ai_drama_skill\_opus_answers\`
+- 男女身份隔离：`presentation_sex` + `owner_id`，男装/女装/道具不得串角色

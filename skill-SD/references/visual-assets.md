@@ -1,6 +1,6 @@
 # 视觉圣经、角色板与场景资产
 
-多风格资产的选择、短模板和环境调用见 [多风格视觉资产提示词模块](visual-style-and-asset-modules.md)。先选风格，再写题材身份和资产结构；不把国漫、BJD 或任何渲染技术写成默认前缀。战甲、仙袍、头饰流苏另读 `_core/references/assets/anime-3d-asset-lexicon.md`。生图前：`python -m core.lib.asset_prompt --kind character|weapon|scene --aspect <track> --file <prompt.md>`。
+多风格资产的选择、短模板和环境调用见 [多风格视觉资产提示词模块](visual-style-and-asset-modules.md)。先选风格，再写题材身份和资产结构；不把国漫、BJD 或任何渲染技术写成默认前缀。战甲、仙袍、头饰流苏另读 `_core/references/assets/anime-3d-asset-lexicon.md`。人物必须锁 `presentation_sex`，服装/道具必须 `owner_id`，男女资产不得串套（`_core/references/assets/identity-lock.md`）。生图前：`python -m core.lib.asset_prompt --kind character|weapon|scene --aspect <track> --sex male|female --character-id <id> --file <prompt.md>`；`python -m core.lib.identity --project project.json`。
 
 ## 1. 项目风格圣经
 

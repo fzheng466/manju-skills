@@ -16,7 +16,8 @@ metadata:
 ```text
 python -m core.lib.transpile --project project.json --job-id JOB001 --profile seedance-2.5 --out sd-prompt.md
 python scripts/transpile_h3.py --project project.json --job-id JOB001 --profile seedance-2.5 --out sd-prompt.md
-python -m core.lib.asset_prompt --kind character --aspect 16:9 --file asset-hero.md
+python -m core.lib.asset_prompt --kind character --aspect 16:9 --sex female --character-id LIN_WAN --file asset-hero.md
+python -m core.lib.identity --project project.json
 python -m core.lib.shot_quality --job project.json --job-id JOB001 --prompt sd-prompt.md
 ```
 

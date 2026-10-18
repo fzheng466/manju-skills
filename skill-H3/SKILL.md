@@ -24,11 +24,14 @@ metadata:
 动漫/3D 战甲、仙袍、头饰流苏资产图读取 `_core/references/assets/anime-3d-asset-lexicon.md`，不要只用真人缂丝/盘金绣词。生图前跑：
 
 ```text
-python -m core.lib.asset_prompt --kind character --aspect 16:9 --file asset-hero.md
-python -m core.lib.asset_prompt --kind weapon --aspect 16:9 --file artifact.md
+python -m core.lib.asset_prompt --kind character --aspect 16:9 --sex male --character-id SHEN_YAN --file asset-hero.md
+python -m core.lib.identity --project project.json
+python -m core.lib.asset_prompt --kind weapon --aspect 16:9 --sex male --character-id SHEN_YAN --file artifact.md
 python -m core.lib.shot_quality --job project.json --job-id JOB001 --prompt compiled.md
 python -m core.lib.adapt --job project.json --lock effective-capability.lock.json --job-id JOB001
 ```
+
+人物卡必须锁 `presentation_sex`（male/female）；服装和道具必须 `owner_id`。禁止把男角色的战甲/兵器提示词套到女角色，也禁止把女装、步摇、细跟套到男角色。规则：`_core/references/assets/identity-lock.md`。渠道只问本机 `$MANJU_HOME/channels`，真实入口不进 GitHub。
 
 失败模式 `_core/references/failure-modes/failure-modes.md`。剧本层交接若有 JSON，对齐 `_core/schemas/handoff.schema.json`。
 
