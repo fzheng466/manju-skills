@@ -104,14 +104,14 @@ class ShotQualityTightenTests(unittest.TestCase):
                             "expression": "眉心收紧",
                             "visible_action": "按住刀脊",
                             "camera": {"framing": "全身"},
-                            "positions": [{"actor_id": "A", "screen_height_percent": 50}],
+                            "positions": [{"actor_id": "A", "screen_height_percent": 50}],  # below new 全身 min 60
                         }
                     ],
                 }
             ],
         }
         err = check_job(job, "9:16竖屏，两人前后纵深")
-        self.assertTrue(any("SHOT-AR" in e for e in err))
+        self.assertTrue(any("SHOT-AR" in e or "SHOT-NEAR" in e for e in err))
         self.assertTrue(any("trigger" in e for e in err))
         self.assertTrue(any("suppression" in e or "压回" in e for e in err))
         closeup = {

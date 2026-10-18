@@ -311,6 +311,26 @@ def test_shot_rejects_vague_acting_and_stacked_moves():
     assert check_job(job, "9:16竖屏，两人前后纵深") == []
 
 
+def test_portrait_near_gate():
+    from core.lib.shot_quality import check_prompt, PORTRAIT_BOILERPLATE
+
+    old = (
+        "9:16竖屏。齐胸高机位。0.00–2.00秒，<Subject 1> 从巷子中段沿纵深走向镜头，约占画面高度60%。"
+        "镜头缓慢推近到中近景，约占画面高度75%。"
+    )
+    err = check_prompt(old, {"aspect_ratio": "9:16"})
+    assert any("walk-toward-camera" in e for e in err)
+    assert any("中近景" in e or "face-in-lens" in e for e in err)
+    assert any("SHOT-REF" in e for e in err)
+    fixed = (
+        PORTRAIT_BOILERPLATE
+        + "9:16竖屏。齐腰高平视，略长焦。0.00–2.00秒，<Subject 1> 从巷子深处沿纵深走来，约占画面高度40%，"
+        "走到离镜头约3米处停住，约占画面高度56%。头顶上方留出约12%的空间。"
+        "参考图只锁定身份，不决定构图。"
+    )
+    assert check_prompt(fixed, {"aspect_ratio": "9:16"}) == []
+
+
 def test_transpile_keeps_frozen_line_and_strips_h3():
     job = {
         "mode": "T2VA",

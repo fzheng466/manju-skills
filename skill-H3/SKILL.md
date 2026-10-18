@@ -15,7 +15,7 @@ metadata:
 调用本技能后，在写资产图或 H3 提示词之前：
 
 1. 读取 `_core/references/channel/interview.md` 与 `_core/references/assets/aspect-tracks.md`。
-2. **第一问：这次交付 16:9、9:16，还是两条都要？** 写入 `deliverables`。**交付画幅只决定视频提示词。** 人物四视图、场景四向、道具/兵器一律只出一套 **16:9** 资产图，L/P 共用，9:16 视频任务直接把这套图当参考挂上（请求必须显式指定 9:16）。竖屏的远近、纵深、人物高度占比、上下 8% 安全区全部写在 9:16 视频提示词里，不另出身份/场景/道具竖图。只有 I2VA/FL2VA **首尾帧**必须是 9:16 实帧；某个镜头试跑后场景被带成横构图，才给那一镜补一张竖裁参考。禁止按成片画幅再生成一张身份板。
+2. **第一问：这次交付 16:9、9:16，还是两条都要？** 未回答不得写视频提示词。写入 `deliverables` 后**按画幅各编一套镜头词**，不要拿 16:9 构图去竖屏里硬套。**交付画幅只决定视频提示词，不决定资产图。** 人物四视图、场景四向、道具/兵器一律只出一套 **16:9** 资产图，L/P 共用；9:16 视频把这套图当参考挂上，请求必须显式指定 9:16。竖屏必须写：参考图只锁身份不锁构图、头顶留约 12%、人物约占画面高度（中景 42–58 / 全身 60–74）、走向镜头起步 ≤45%、停在约 3 米、禁止无特写节拍的大头。模板见 `_core/lib/shot_quality.py` 的 `PORTRAIT_BOILERPLATE`。不另出身份/场景/道具竖图。只有 I2VA/FL2VA **首尾帧**必须是成片画幅实帧。
 3. 再选渠道（`$MANJU_HOME/channels`）。一条线渠道不支持该画幅时，只暂停该线（换渠道 / 等待 / 衍生版），**不改另一条线已定稿资产**。
 4. 生成 lock：`python -m core.lib.lock --project project.json --channel <id> --baseline models/h3.baseline.json --out effective-capability.lock.json`
 5. 提交前必须：`python scripts/validate_project.py project.json --lock effective-capability.lock.json`
