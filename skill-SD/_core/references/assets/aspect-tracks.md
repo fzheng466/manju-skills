@@ -16,13 +16,16 @@
 
 ## 资产
 
-| 资产 | 共用？ | 规则 |
+交付画幅 ≠ 资产图画幅。成片可以是 9:16，**主板永远 16:9**。
+
+| 资产 | 画幅 | 规则 |
 |---|---|---|
-| 人物四视图身份板 | 共用 | `asset_role: identity`，画幅可跟主线，引用时不锁视频构图 |
-| 场景四向结构板 | 结构共用 | 9:16 从该格取中心竖条，锚点必须在裁窗内；短边不够则单独出竖幅场景图，禁止拉伸 |
-| 构图资产 | 分线 | `SCENE_<ID>_<方向>_P` 登记 parent、crop_box、aspect、track_id |
+| 人物四视图身份板 | **永远 16:9** | 一人一张主板，L/P 共用。禁止再出一张 9:16 身份板。引用时不锁视频构图 |
+| 场景四向结构板 | **永远 16:9** | 锚点只在这张上定义。9:16 从已过审真图取中心竖条（可向锚点偏移），登记 `parent_asset_id` + `crop_box`；短边不够才出 `derivative`，锚点句必须照抄主板，禁止拉伸、禁止把路灯挪到中轴 |
+| 道具/兵器结构板 | **永远 16:9** | 左主图 + 右细节窗 |
+| 构图派生 / 首尾帧 | 跟随交付线 | `SCENE_<ID>_<方向>_P` 或 `kind: frame`。帧图必须等于成片画幅 |
 | 人物卡 | 共用身份 | 必填 `presentation_sex: male\|female`，提交缺失即拦截 |
-| 服装/道具/兵器 | 按角色 | 必填 `owner_id`，禁止跨角色、跨性别共用；生图走 `asset_prompt --sex` |
+| 服装/道具/兵器绑定 | 按角色 | 必填 `owner_id`；专属识别点不得落到别的角色板上。生图走 `asset_prompt --sex --project` |
 
 ## 镜头提示词
 
@@ -39,7 +42,10 @@
 ## 生产命令
 
 ```text
-python -m core.lib.asset_prompt --kind character|weapon|scene --aspect 16:9|9:16 --file <prompt.md>
+python -m core.lib.asset_prompt --kind character|prop|weapon --aspect 16:9 --sex male|female --file <prompt.md> --project project.json
+python -m core.lib.asset_prompt --kind scene --aspect 16:9 --file <prompt.md>
+python -m core.lib.asset_prompt --kind scene --aspect 9:16 --derivative-of SCENE_<ID> --file <crop.md>
+python -m core.lib.aspect_sync --landscape scene.md --portrait crop.md --scene-id SCENE_<ID>
 python -m core.lib.shot_quality --job project.json --job-id <id> --prompt compiled.md
 python -m core.lib.adapt --job project.json --lock effective-capability.lock.json
 python -m core.lib.transpile --project project.json --job-id <id> --profile seedance-2.5 --out sd.md

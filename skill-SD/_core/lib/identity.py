@@ -144,6 +144,59 @@ def check_character_card(card: dict[str, Any]) -> list[str]:
     return errors
 
 
+_CLOTHING_SIG = (
+    "深橄榄绿旧夹克", "橄榄绿夹克", "胶布眼镜", "白色医用胶布",
+    "藏青围裙", "枣红色细格纹", "枣红格衬衫",
+)
+
+
+def signature_tokens(card: dict[str, Any]) -> list[str]:
+    """Distinctive ID points / wardrobe phrases owned by one character."""
+    out: list[str] = []
+    for key in ("signature", "identification_points", "id_points"):
+        val = card.get(key)
+        if isinstance(val, list):
+            out.extend(str(x).strip() for x in val if str(x).strip())
+        elif isinstance(val, str) and val.strip():
+            out.append(val.strip())
+    body = _text(card.get("prompt"), card.get("description"), card.get("character_design_record"))
+    for match in re.finditer(r"[①②③④⑤⑥⑦⑧⑨⑩]([^①②③④⑤⑥⑦⑧⑨⑩【\n]+)", body):
+        phrase = match.group(1).strip(" 。；;，,")
+        if 4 <= len(phrase) <= 48:
+            out.append(phrase)
+    for token in _CLOTHING_SIG:
+        if token in body:
+            out.append(token)
+    if "胶布" in body and "胶布" not in out:
+        out.append("胶布")
+    seen: set[str] = set()
+    uniq: list[str] = []
+    for token in out:
+        if token and token not in seen:
+            seen.add(token)
+            uniq.append(token)
+    return uniq
+
+
+def check_signature_cross(text: str, character_id: str, characters: dict[str, dict[str, Any]]) -> list[str]:
+    """Fail when another character's signature tokens appear on this board/prompt."""
+    errors: list[str] = []
+    body = text or ""
+    self_id = str(character_id or "")
+    for other_id, card in characters.items():
+        if str(other_id) == self_id:
+            continue
+        tokens = tuple(t for t in signature_tokens(card) if t)
+        if not tokens:
+            continue
+        hits = _hits(body, tokens)
+        if hits:
+            errors.append(
+                f"ID-SIG: {self_id or '?'} prompt contains {other_id} signature {sorted(set(hits))[:4]}"
+            )
+    return errors
+
+
 def check_prompt_for_sex(text: str, sex: str, *, character_id: str = "?", kind: str = "character") -> list[str]:
     errors: list[str] = []
     sex_n = normalize_sex(sex)
@@ -267,6 +320,18 @@ def check_job_identity(
                             f"ID-MIX: job {jid} compiled prompt may put female-coded {sorted(set(bad))[:4]} on male {name}"
                         )
                         break
+                for other_id, other in characters.items():
+                    if other_id == cid:
+                        continue
+                    other_name = str(other.get("name") or other_id)
+                    if other_name and other_name in window:
+                        continue
+                    hits = _hits(window, tuple(signature_tokens(other)))
+                    if hits:
+                        errors.append(
+                            f"ID-SIG: job {jid} compiled prompt may put {other_id} signature {sorted(set(hits))[:4]} on {name}"
+                        )
+                        break
                 start = pos + len(name)
     return errors
 
@@ -278,10 +343,26 @@ def check_project(project: dict[str, Any], root: Path | None = None) -> list[str
     assets_by_id = {str(a.get("asset_id")): a for a in assets if a.get("asset_id")}
     if not characters and any(a.get("kind") in {"character", "costume", "wardrobe"} or a.get("asset_role") == "identity" for a in assets):
         errors.append("ID-SEX: project has character/wardrobe assets but no characters[] with presentation_sex")
-    for card in characters.values():
+    for cid, card in characters.items():
         errors.extend(check_character_card(card))
+        errors.extend(
+            check_signature_cross(
+                _text(card.get("prompt"), card.get("description"), card),
+                str(cid),
+                characters,
+            )
+        )
     for asset in assets:
         errors.extend(check_asset_binding(asset, characters))
+        owner = str(asset.get("owner_id") or asset.get("character_id") or "")
+        if owner:
+            errors.extend(
+                check_signature_cross(
+                    _text(asset.get("prompt"), asset.get("description"), asset),
+                    owner,
+                    characters,
+                )
+            )
     if project.get("stage") == "submit":
         for job in project.get("jobs") or []:
             if isinstance(job, dict):

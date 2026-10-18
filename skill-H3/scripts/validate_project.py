@@ -145,6 +145,11 @@ def validate_prompt_dialogue(prompt_text: str, dialogue: list[dict[str, Any]]) -
             errors.append(
                 f"compiled prompt dialogue[{index}] does not match the frozen utterance text"
             )
+    try:
+        from core.lib.shot_quality import check_speaker_order
+    except ImportError:
+        from _core.lib.shot_quality import check_speaker_order  # type: ignore
+    errors.extend(check_speaker_order(prompt_text or ""))
     return errors
 
 

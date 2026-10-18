@@ -433,6 +433,76 @@ def test_weapon_silhouette_only_fails():
     assert any("ASSET-WPN" in e for e in err)
 
 
+def test_master_assets_reject_portrait_aspect():
+    board = (
+        "9:16竖屏男性角色四视图。正面全身、45°侧面全身、背面全身。双手空置。喉结可见。"
+    )
+    err = check_text("character", board, "9:16", sex="male", character_id="CHEN_HAN")
+    assert any("identity/prop masters are 16:9" in e for e in err)
+    scene = "9:16竖屏场景四向结构板。【四向】正向。"
+    assert any("derivative-of" in e for e in check_text("scene", scene, "9:16"))
+    crop = "9:16竖屏场景裁切说明。【四向】正向。不加入人物。"
+    assert not any("derivative-of" in e for e in check_text("scene", crop, "9:16", derivative_of="SCENE_ALLEY"))
+
+
+def test_scene_cast_catches_man_without_zhan_zai():
+    scene = "16:9横屏场景四向结构板。【四向】正向。一个瘦男人提着酒瓶。"
+    err = check_text("scene", scene, "16:9")
+    assert any("男人" in e for e in err)
+    empty = "16:9横屏场景四向结构板。【结构板规则】不加入人物，不出现任何人影。【四向】正向。"
+    assert check_text("scene", empty, "16:9") == []
+
+
+def test_identity_signature_cross():
+    from core.lib.identity import check_signature_cross, check_project
+
+    characters = {
+        "CHEN_HAN": {
+            "character_id": "CHEN_HAN",
+            "name": "陈汉",
+            "presentation_sex": "male",
+            "prompt": "【识别点】①黑框方形眼镜，左侧镜腿中段用白色医用胶布缠了三圈。深橄榄绿旧夹克。",
+        },
+        "LIU_GUIFANG": {
+            "character_id": "LIU_GUIFANG",
+            "name": "刘桂芳",
+            "presentation_sex": "female",
+            "prompt": "【识别点】①指甲缝花土。藏青围裙。",
+        },
+    }
+    mixed = "16:9横屏女性，刘桂芳，深橄榄绿旧夹克，黑框眼镜胶布。正面全身、45°侧面全身、背面全身。双手空置。"
+    err = check_signature_cross(mixed, "LIU_GUIFANG", characters)
+    assert any("ID-SIG" in e and "CHEN_HAN" in e for e in err)
+    project = {
+        "stage": "draft",
+        "characters": [
+            {**characters["CHEN_HAN"]},
+            {**characters["LIU_GUIFANG"], "prompt": mixed},
+        ],
+    }
+    assert any("ID-SIG" in e for e in check_project(project))
+
+
+def test_urban_xianxia_fx_and_speaker_order():
+    from core.lib.shot_quality import check_prompt, check_speaker_order
+    from core.lib.aspect_sync import compare_pair
+
+    urban = "16:9横屏，当代北方工业城市。一层灵力法阵在眼前展开，符文流转。"
+    err = check_prompt(urban, {"aspect_ratio": "16:9", "genre": "urban"})
+    assert any("SHOT-GENRE" in e for e in err)
+    hud = "16:9横屏，当代北方工业城市。淡蓝色半透明扁平矩形界面，像手机全息投影。"
+    assert not any("SHOT-GENRE" in e for e in check_prompt(hud, {"aspect_ratio": "16:9", "genre": "urban"}))
+    bad_sx = "刘桂芳 (S2)，<d>[Chinese] 咋了？</d> 陈汉 (S1)，<d>[Chinese] 妈。</d>"
+    assert any("H3-SX" in e for e in check_speaker_order(bad_sx))
+    good_sx = "刘桂芳 (S1)，<d>[Chinese] 咋了？</d> 陈汉 (S2)，<d>[Chinese] 妈。</d>"
+    assert check_speaker_order(good_sx) == []
+    l = "巷口左侧一根锈蚀的铁皮路灯杆"
+    p = "画面中轴一根锈蚀的铁皮路灯杆"
+    assert any("ASPECT-SYNC" in e for e in compare_pair(l, p, scene_id="ALLEY"))
+    p2 = "巷口左侧一根锈蚀的铁皮路灯杆，裁窗向左偏移"
+    assert compare_pair(l, p2, scene_id="ALLEY") == []
+
+
 import unittest as _unittest
 
 

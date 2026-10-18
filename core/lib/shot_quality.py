@@ -12,6 +12,9 @@ VAGUE_PERF = re.compile(r"眼神复杂|气场强|表情微妙|很有戏|情绪�
 MOVE_TOKEN = r"(推轨|拉轨|推近|拉远|横移|横摇|竖摇|摇摄|升降|环绕|变焦)"
 MULTI_MOVE = re.compile(MOVE_TOKEN + r".{0,24}" + MOVE_TOKEN)
 MID_ONLY = ("中景",)
+XIANXIA_FX = ("法阵", "符文", "灵力", "仙气", "阵眼")
+URBAN_MARKERS = ("urban", "modern", "当代", "都市", "现代都市", "industrial-city")
+SPEAKER_BEFORE_D = re.compile(r"\(S(\d+)\)\s*[，,]?\s*<d>", re.I)
 
 
 def _number(value: Any) -> bool:
@@ -33,7 +36,26 @@ def check_prompt(text: str, job: dict[str, Any] | None = None) -> list[str]:
         errors.append("SHOT-AR: portrait prompt missing 9:16竖屏 opener")
     if MULTI_MOVE.search(body):
         errors.append("SHOT-CAM: more than one primary camera move in the same window; split beats")
+    genre = " ".join(
+        str(job.get(k) or "") for k in ("genre", "setting", "world", "project_genre")
+    ).lower()
+    urban = any(m.lower() in genre or m in body[:80] for m in URBAN_MARKERS)
+    if urban:
+        hits = [w for w in XIANXIA_FX if w in body]
+        if hits:
+            errors.append(f"SHOT-GENRE: urban project prompt contains xianxia FX {hits}")
+    errors.extend(check_speaker_order(body))
     return errors
+
+
+def check_speaker_order(text: str) -> list[str]:
+    tags = [int(n) for n in SPEAKER_BEFORE_D.findall(text or "")]
+    if not tags:
+        return []
+    expected = list(range(1, len(tags) + 1))
+    if tags != expected:
+        return [f"H3-SX: first speaker must be (S1) then increment; got {tags}"]
+    return []
 
 
 def check_job(job: dict[str, Any], prompt_text: str = "") -> list[str]:

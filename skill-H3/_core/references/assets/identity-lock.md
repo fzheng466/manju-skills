@@ -37,6 +37,8 @@ python -m core.lib.identity --prompt shen.md --sex male --character-id SHEN_YAN
 
 男角色提示词出现抹胸/步摇/细跟/丝袜等女装码，或女角色出现喉结/胸肌/胡茬，直接 FAIL。
 
+角色卡应带 `signature` / `identification_points`（或从【识别点】【服装】抽取）。刘桂芳板上出现陈汉的「橄榄绿夹克 / 胶布眼镜」报 `ID-SIG`。`python -m core.lib.asset_prompt ... --project project.json` 才会跑这张表。
+
 ## 视频编译
 
 submit 时 `validate_project.py` 会跑身份检查：镜头不得把 A 的服装绑到 B 身上。

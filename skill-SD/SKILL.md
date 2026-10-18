@@ -9,7 +9,7 @@ metadata:
 
 ## 第一步：先锁画幅，再面谈渠道（强制）
 
-写资产图或 Seedance 提示词之前：读 `_core/references/channel/interview.md` 与 `_core/references/assets/aspect-tracks.md`。第一问锁定 16:9 / 9:16 / 两条都要。再选渠道。一条线渠道不支持该画幅时只暂停该线。生成 lock：`python -m core.lib.lock --project project.json --channel <id> --baseline models/seedance-2.0.baseline.json --out effective-capability.lock.json`（2.5 换对应 baseline）。提交前：`python scripts/validate_project.py project.json --lock effective-capability.lock.json`。
+写资产图或 Seedance 提示词之前：读 `_core/references/channel/interview.md` 与 `_core/references/assets/aspect-tracks.md`。第一问锁定 16:9 / 9:16 / 两条都要。**交付画幅只约束视频提示词和首尾帧**；人物/场景/道具主板永远 16:9，9:16 只做裁切衍生。再选渠道。一条线渠道不支持该画幅时只暂停该线。生成 lock：`python -m core.lib.lock --project project.json --channel <id> --baseline models/seedance-2.0.baseline.json --out effective-capability.lock.json`（2.5 换对应 baseline）。提交前：`python scripts/validate_project.py project.json --lock effective-capability.lock.json`。
 
 从 H3 复用同一素材时：中性导演谱才是输入，不要硬翻 H3 成品文本。
 
@@ -32,7 +32,7 @@ python -m core.lib.shot_quality --job project.json --job-id JOB001 --prompt sd-p
 
 MiniMax H3 是另一条独立技能。用户选择 H3 时提示 `$minimax-h3-manju`；不得在本文件输出 H3 的 T2VA/Ref2VA、`(Sx)`、`<d>`、H3配额或字段。
 
-人物身份四视图可跨画幅共用；构图资产、分镜构图和视频输出按交付线画幅生成（16:9 / 9:16）。人物默认一人一张四视图板：左侧超大正面胸像，右侧并排正面全身、45°侧向全身、背面全身；严禁默认扩成多张头像、九宫格或表情板。只有用户明确需要或单张图确实无法表达结构时才增加资产。规则见 `_core/references/assets/aspect-tracks.md`。
+人物身份四视图、场景四向、道具结构板一律 16:9 主板，L/P 共用，禁止按 9:16 再生成一张身份。构图派生（裁切）和视频输出按交付线画幅生成。人物默认一人一张四视图板：左侧超大正面胸像，右侧并排正面全身、45°侧向全身、背面全身；严禁默认扩成多张头像、九宫格或表情板。只有用户明确需要或单张图确实无法表达结构时才增加资产。规则见 `_core/references/assets/aspect-tracks.md`。
 
 ## 执行原则
 
