@@ -72,6 +72,13 @@ def main() -> int:
     mk = args.model_key or baseline.get("model_profile")
     if mk and mk in models:
         channel_model = models[mk]
+        baseline_profile = str(baseline.get("model_profile") or "")
+        if args.model_key and baseline_profile and args.model_key != baseline_profile:
+            print(
+                f"ERROR: --model-key {args.model_key!r} does not match baseline model_profile {baseline_profile!r}",
+                file=sys.stderr,
+            )
+            return 2
     else:
         print(
             f"ERROR: channel {args.channel} has no model key {mk!r}; "

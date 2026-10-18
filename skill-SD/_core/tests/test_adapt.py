@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from core.lib.adapt import preview
 from core.lib.asset_prompt import check_text
 from core.lib.channel import merge_effective
@@ -200,6 +202,12 @@ def test_asset_character_requires_empty_hands_and_structure():
     assert any("ASSET" in e for e in err)
     stuffed = "16:9横屏 四视 肩甲 双手空置 结构计数 战甲很好看"
     assert any("结构计数" in e or "ASSET-CHAR" in e for e in check_text("character", stuffed, "16:9"))
+    lexicon = Path(__file__).resolve().parents[1] / "references" / "assets" / "anime-3d-asset-lexicon.md"
+    sample = lexicon.read_text(encoding="utf-8")
+    armor = sample.split("## 示例 1")[1].split("## 示例 2")[0]
+    robe = sample.split("## 示例 2")[1].split("## 示例 3")[0]
+    assert check_text("character", armor, "16:9") == []
+    assert check_text("character", robe, "16:9") == []
     good = (
         "16:9横屏角色四视图设定板。左侧超大正面胸像，右侧正面全身、45°侧面全身、背面全身。"
         "双手空置并离开身体。战甲：胸甲上下两片、肩甲4片、裙甲4片、胫甲。"

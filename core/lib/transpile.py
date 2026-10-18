@@ -131,7 +131,10 @@ def compile_prompt(job: dict[str, Any], *, profile: str = "seedance-2.5", aspect
             post = line.get("listener_reaction") or line.get("post_line_reaction")
             speaker = _speaker_name(line)
             text = line.get("text") or ""
-            blocks.append(f"{speaker}以{audible}说：「{text}」")
+            if speaker:
+                blocks.append(f"{speaker}以{audible}说：「{text}」")
+            else:
+                blocks.append(f"以{audible}说：「{text}」")
             vis = []
             if pre:
                 vis.append(str(pre))
