@@ -182,6 +182,9 @@ def cmd_next(project: dict[str, Any], *, channel_id: str, budget: float, confirm
     if any(i.get("status") == "awaiting_review" for i in queue["items"]):
         print("ERROR: an asset is awaiting_review; accept/reject before next", file=sys.stderr)
         return 1
+    if any(i.get("status") == "unknown" for i in queue["items"]):
+        print("ERROR: an asset is unknown; resolve --asset <id> --charged 0|1 before next", file=sys.stderr)
+        return 1
     nxt = next((i for i in queue["items"] if i.get("status") == "queued"), None)
     if not nxt:
         print("queue empty")
@@ -264,11 +267,33 @@ def cmd_accept(project: dict[str, Any], asset_id: str, path: str | None) -> int:
     if not item:
         print(f"ERROR: {asset_id} not in queue", file=sys.stderr)
         return 2
+    if item.get("status") != "awaiting_review":
+        print(f"ERROR: {asset_id} status {item.get('status')} is not awaiting_review", file=sys.stderr)
+        return 1
     item["status"] = "accepted"
     if path:
         item["path"] = path
     save_queue(pid, queue)
     print(f"accepted {asset_id}")
+    return 0
+
+
+def cmd_resolve(project: dict[str, Any], asset_id: str, charged: int) -> int:
+    pid = str(project.get("project_id") or "unknown")
+    queue = load_queue(pid)
+    item = next((i for i in queue["items"] if i.get("asset_id") == asset_id), None)
+    if not item:
+        print(f"ERROR: {asset_id} not in queue", file=sys.stderr)
+        return 2
+    if item.get("status") != "unknown":
+        print(f"ERROR: {asset_id} status {item.get('status')} is not unknown", file=sys.stderr)
+        return 1
+    if charged:
+        queue["spent"] = float(queue.get("spent") or 0) + float(item.get("charged") or 0)
+    item["status"] = "queued"
+    item["resolved_charged"] = bool(charged)
+    save_queue(pid, queue)
+    print(f"resolved {asset_id} charged={charged}")
     return 0
 
 
@@ -279,6 +304,9 @@ def cmd_reject(project: dict[str, Any], asset_id: str, reason: str) -> int:
     if not item:
         print(f"ERROR: {asset_id} not in queue", file=sys.stderr)
         return 2
+    if item.get("status") != "awaiting_review":
+        print(f"ERROR: {asset_id} status {item.get('status')} is not awaiting_review", file=sys.stderr)
+        return 1
     item["status"] = "queued"
     item["reject_reason"] = reason
     item.pop("path", None)
@@ -290,7 +318,7 @@ def cmd_reject(project: dict[str, Any], asset_id: str, reason: str) -> int:
 def main() -> int:
     p = argparse.ArgumentParser(description="Sequential local asset generation (n=1, no poll)")
     sub = p.add_subparsers(dest="cmd", required=True)
-    for name in ("queue", "next", "accept", "reject"):
+    for name in ("queue", "next", "accept", "reject", "resolve"):
         sp = sub.add_parser(name)
         sp.add_argument("--project", type=Path, required=True)
         if name == "next":
@@ -303,6 +331,9 @@ def main() -> int:
         if name == "reject":
             sp.add_argument("--asset", required=True)
             sp.add_argument("--reason", required=True)
+        if name == "resolve":
+            sp.add_argument("--asset", required=True)
+            sp.add_argument("--charged", type=int, required=True, choices=[0, 1])
     args = p.parse_args()
     project = json.loads(args.project.read_text(encoding="utf-8"))
     if args.cmd == "queue":
@@ -311,6 +342,8 @@ def main() -> int:
         return cmd_next(project, channel_id=args.channel, budget=args.budget, confirm=args.confirm)
     if args.cmd == "accept":
         return cmd_accept(project, args.asset, args.path)
+    if args.cmd == "resolve":
+        return cmd_resolve(project, args.asset, args.charged)
     return cmd_reject(project, args.asset, args.reason)
 
 

@@ -74,7 +74,9 @@ project/
   "transition_reason": "与前段连接或本段建立镜头的原因",
   "previous_job_id": "none 或已审核的前序job ID"
 }
-```H3每个job只能选择一种输入模式。Ref2VA的实际附件使用`attached_reference`并映射到`inputs`中`role=reference`；I2VA/L2VA/FL2VA的输入帧本身使用`frame_anchor`并映射到相同ID的首/尾帧输入，画面中需保持的角色、场景、道具使用`represented_in_frame`，且须在对应帧图的`represents_asset_ids`中登记。提交阶段每个`inputs`项都必须在绑定表中有对应关系。首尾帧模式不附加Ref2VA参考图；若绑定资产未出现在帧锚图中，应先制作/审核含有该资产的锚图，或另拆Ref2VA任务，不得混合模式。
+```
+
+H3每个job只能选择一种输入模式。Ref2VA的实际附件使用`attached_reference`并映射到`inputs`中`role=reference`；I2VA/L2VA/FL2VA的输入帧本身使用`frame_anchor`并映射到相同ID的首/尾帧输入，画面中需保持的角色、场景、道具使用`represented_in_frame`，且须在对应帧图的`represents_asset_ids`中登记。提交阶段每个`inputs`项都必须在绑定表中有对应关系。首尾帧模式不附加Ref2VA参考图；若绑定资产未出现在帧锚图中，应先制作/审核含有该资产的锚图，或另拆Ref2VA任务，不得混合模式。
 
 归档生成视频作为抽帧来源时，视频资产记录`{kind: "video", status: "approved", archived: true, generated_by_job_id, path, duration_seconds}`；来源job必须为`reviewed`。抽出的帧是独立`kind: "image"`资产，记录`frame_source: {video_asset_id, source_job_id, time_seconds}`及`frame_role: first_frame / last_frame`。时间码须落在源视频有效时长内；帧图比例为16:9，提交前状态为`approved`并能读取。对应帧输入角色仍使用`first_frame`或`last_frame`，并按H3模式写首帧/尾帧专用指令行。抽帧和登记不等于提交新视频job的授权。
 

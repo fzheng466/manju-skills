@@ -389,6 +389,13 @@ def test_transpile_uses_character_name_not_speaker_id():
     assert "shen以" not in named["prompt"]
     missing = compile_prompt(job, profile="seedance-2.5", characters=[], lexicon=[])
     assert any("G-TR4" in e for e in missing["errors"])
+    styled = compile_prompt(
+        {**job, "shots": [{**job["shots"][0], "camera": "3D半写实国漫CG PBR材质"}]},
+        profile="seedance-2.5",
+        characters=[{"speaker_id": "shen", "name": "沈砚"}],
+    )
+    assert "3D国风动画电影质感" in styled["prompt"]
+    assert styled.get("lexicon_applied")
 
 
 def test_weapon_without_sex_still_identity_checked():

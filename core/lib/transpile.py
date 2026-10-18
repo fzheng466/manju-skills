@@ -84,16 +84,17 @@ def load_lexicon(path: Path | None = None) -> list[tuple[str, str]]:
                 break
     if path is None or not path.is_file():
         return []
+    import csv
+
     rows: list[tuple[str, str]] = []
-    for i, line in enumerate(path.read_text(encoding="utf-8").splitlines()):
-        if i == 0 or not line.strip():
-            continue
-        parts = line.split(",")
-        if len(parts) < 6:
-            continue
-        h3, sd, status = parts[1], parts[2], parts[5]
-        if status.strip() in {"verified", "hypothesis"} and h3 and sd:
-            rows.append((h3, sd))
+    with path.open(encoding="utf-8") as fh:
+        reader = csv.DictReader(fh)
+        for row in reader:
+            h3 = (row.get("h3_phrase") or "").strip()
+            sd = (row.get("sd_phrase") or "").strip()
+            status = (row.get("status") or "").strip()
+            if status in {"verified", "hypothesis"} and h3 and sd:
+                rows.append((h3, sd))
     rows.sort(key=lambda x: len(x[0]), reverse=True)
     return rows
 

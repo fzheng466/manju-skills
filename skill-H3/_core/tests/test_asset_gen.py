@@ -85,6 +85,20 @@ class AssetGenTests(unittest.TestCase):
         text = self.calls.read_text(encoding="utf-8")
         self.assertNotIn("http", text.lower())
 
+    def test_accept_requires_awaiting_review(self):
+        asset_gen.save_queue(
+            "p1",
+            {"project_id": "p1", "spent": 0, "items": [{"asset_id": "CHAR1", "status": "queued"}]},
+        )
+        self.assertEqual(asset_gen.cmd_accept(self.project, "CHAR1", None), 1)
+
+    def test_unknown_blocks_next(self):
+        asset_gen.save_queue(
+            "p1",
+            {"project_id": "p1", "spent": 0, "items": [{"asset_id": "CHAR1", "status": "unknown"}]},
+        )
+        self.assertEqual(asset_gen.cmd_next(self.project, channel_id="local", budget=5, confirm=True), 1)
+
 
 if __name__ == "__main__":
     unittest.main()

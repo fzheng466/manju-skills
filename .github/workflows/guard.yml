@@ -22,3 +22,6 @@ jobs:
           if grep -n '。###' skill-H3/references/project-contract.md; then
             exit 1
           fi
+          if grep -nE '^```[^`\n]+.+' skill-H3/references/project-contract.md | grep -vE '^[^:]+:```(json|text|md)$'; then
+            exit 1
+          fi
