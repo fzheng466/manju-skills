@@ -768,6 +768,13 @@ def check_prop_state(
         if not any(w in body for w in words):
             return
         if not _prop_mentioned(body, prop_id, assets_by_id):
+            asset = (assets_by_id or {}).get(prop_id) or {}
+            has_name = bool(asset.get("name") or asset.get("label") or asset.get("aliases"))
+            has_generic = any(part.lower() in _GENERIC_PROP_NAMES for part in str(prop_id).split("_"))
+            if prop_id != "*" and not has_name and not has_generic:
+                errors.append(
+                    f"SHOT-PROP-NAME: {prop_id} has a ledger state but no name/aliases; cannot verify the prompt"
+                )
             return
         errors.append(
             f"SHOT-PROP-STATE: {prop_id} is {state} in the ledger but the prompt says {opposite}"

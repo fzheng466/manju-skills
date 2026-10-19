@@ -257,6 +257,15 @@ def test_prop_state_generic_lid_and_cup():
     assert any("SHOT-PROP-STATE" in e for e in check_job(cup, "9:16竖屏。杯子碎了。"))
 
 
+def test_prop_state_without_name_fails_closed():
+    job = {
+        "aspect_ratio": "9:16",
+        "continuity_ledger": {"prop_state": {"PROP_XYZ": "covered"}},
+    }
+    err = check_job(job, "9:16竖屏。盖子掀开。")
+    assert any("SHOT-PROP-NAME" in e for e in err)
+
+
 def test_home_media_path_outside_production_root():
     home = Path.home()
     job = {

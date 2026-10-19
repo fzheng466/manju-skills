@@ -221,20 +221,28 @@ def preview(job: dict[str, Any], effective: dict[str, Any]) -> dict[str, Any]:
         if dur_i in allowed and dur_i <= max_s + 0.001:
             splits, actions, blocked = [{"start": 0.0, "end": duration or max_s, "fallback": "none"}], [], False
         else:
-            duration_options = _enum_options(duration, allowed, max_s, _dialogue_spans(job))
+            duration_options, cut_blocked = _enum_options(duration, allowed, max_s, _dialogue_spans(job))
             if not duration_options:
-                actions = [
-                    f"R-DUR-02: {job.get('id') or 'job'} {dur_i}s has no legal option in channel enum "
-                    f"{allowed} (max {max_s:g}s): use a pad_action inside the max, or split into enum pieces"
-                ]
+                if cut_blocked:
+                    actions = [
+                        f"R-DUR-03: {job.get('id') or 'job'} {dur_i}s enum pieces only cut inside a spoken line; "
+                        "do not split mid-utterance"
+                    ]
+                    rule = "R-DUR-03"
+                else:
+                    actions = [
+                        f"R-DUR-02: {job.get('id') or 'job'} {dur_i}s has no legal option in channel enum "
+                        f"{allowed} (max {max_s:g}s): use a pad_action inside the max, or split into enum pieces"
+                    ]
+                    rule = "R-DUR-02"
                 return {
                     "blocked": True,
-                    "rule": "R-DUR-02",
+                    "rule": rule,
                     "actions": actions,
                     "splits": [{"start": 0.0, "end": duration}],
                     "duration_options": [],
                     "message": actions[-1],
-                    "rules_fired": ["R-DUR-02"],
+                    "rules_fired": [rule],
                 }
             first = duration_options[0]
             if first["action"] == "split_enum":
@@ -336,9 +344,10 @@ def _enum_piece_combo(
     allowed: list[int],
     spans: list[tuple[float, float, str]],
     max_pieces: int = 5,
-) -> list[int] | None:
-    """Enum composition whose internal cut points do not fall inside a spoken line."""
+) -> tuple[list[int] | None, bool]:
+    """Return (legal composition, cut_blocked). cut_blocked means compositions existed but all cut a line."""
     vals = sorted({int(v) for v in allowed if int(v) > 0}, reverse=True)
+    cut_blocked = False
 
     def cuts_ok(path: list[int]) -> bool:
         cursor = 0.0
@@ -349,8 +358,14 @@ def _enum_piece_combo(
         return True
 
     def rec(rem: int, path: list[int]) -> list[int] | None:
+        nonlocal cut_blocked
         if rem == 0:
-            return path if len(path) >= 2 and cuts_ok(path) else None
+            if len(path) < 2:
+                return None
+            if cuts_ok(path):
+                return path
+            cut_blocked = True
+            return None
         if len(path) >= max_pieces:
             return None
         for v in vals:
@@ -360,7 +375,8 @@ def _enum_piece_combo(
                     return got
         return None
 
-    return rec(target, [])
+    combo = rec(target, [])
+    return combo, bool(cut_blocked and combo is None)
 
 
 def _enum_options(
@@ -368,7 +384,7 @@ def _enum_options(
     allowed: list[int],
     max_s: float,
     spans: list[tuple[float, float, str]],
-) -> list[dict[str, Any]]:
+) -> tuple[list[dict[str, Any]], bool]:
     """R-DUR-05: pad/trim for in-range durations; enum composition for over-max jobs."""
     target = int(round(duration))
     opts: list[dict[str, Any]] = []
@@ -379,11 +395,12 @@ def _enum_options(
             opts.append({"action": "pad_action", "duration": up, "delta_seconds": up - target})
         if down is not None and 0 < target - down <= 2:
             opts.append({"action": "trim", "duration": down, "delta_seconds": target - down})
+    cut_blocked = False
     if not opts:
-        combo = _enum_piece_combo(target, allowed, spans)
+        combo, cut_blocked = _enum_piece_combo(target, allowed, spans)
         if combo:
             opts.append({"action": "split_enum", "pieces": combo, "sum_seconds": sum(combo)})
-    return opts
+    return opts, cut_blocked
 
 def main() -> int:
     p = argparse.ArgumentParser(description="Preview adaptive compile for one job")
