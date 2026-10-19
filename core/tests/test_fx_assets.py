@@ -168,6 +168,28 @@ def test_id_own_fx_applied_to_other_character():
     assert any("ID-OWN" in e and "LIN_WAN" in e for e in err)
 
 
+def test_shot_fx_ui_same_frame_and_portrait_columns():
+    from core.lib.shot_quality import check_fx_ui
+
+    cramped = (
+        "[Shot 1] 中景。沈砚约占画面高度55%。系统面板高度约为画面高度的45%，"
+        "标题框和地台同时出现在他胸前。"
+    )
+    err = check_fx_ui(cramped, "16:9")
+    assert any("SHOT-FX-UI" in e for e in err), err
+    bad_p = (
+        "[Shot 2] 全屏系统插入镜，人物不入画。左右各竖排3枚六边形装饰。"
+    )
+    err_p = check_fx_ui(bad_p, "9:16")
+    assert any("3+3" in e or "SHOT-FX-UI" in e for e in err_p), err_p
+    ok = (
+        "[Shot 1] 中景。沈砚约占画面高度55%。胸前一个光点。"
+        "[Shot 2] 全屏系统插入镜，人物不入画。标题框在上，主面板居中，地台在下。"
+        "[Shot 3] 中近景。沈砚约占画面高度62%。小面板高度约为画面高度的18%。"
+    )
+    assert check_fx_ui(ok, "9:16") == []
+
+
 class TestFxAssets(unittest.TestCase):
     pass
 

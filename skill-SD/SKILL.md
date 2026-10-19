@@ -9,7 +9,7 @@ metadata:
 
 ## 第一步：先锁画幅，再面谈渠道（强制）
 
-写资产图或 Seedance 提示词之前：读 `_core/references/channel/interview.md` 与 `_core/references/assets/aspect-tracks.md`。**第一问锁定 16:9 / 9:16 / 两条都要，未回答不得写视频词。** 按画幅各编一套镜头词，竖屏不要套横屏构图。交付画幅只约束视频提示词和首尾帧；人物/场景/道具/**贯穿特效模板**只出一套 16:9。**第二问（或从大纲推断）锁剧种**，按 aspect-tracks「剧种 → 必出模板」写出 `fx_templates`（系统面板/法阵/刃光/护盾等），每项 `owner_id`；镜头出现这些特效必须绑定 `fx` 资产。9:16 必须带头顶留白、高度数字和「只锁身份不锁构图」，见 `shot_quality.PORTRAIT_BOILERPLATE`。再选渠道。一条线渠道不支持该画幅时只暂停该线。生成 lock：`python -m core.lib.lock --project project.json --channel <id> --baseline models/seedance-2.0.baseline.json --out effective-capability.lock.json`（2.5 换对应 baseline）。提交前：`python scripts/validate_project.py project.json --lock effective-capability.lock.json`。
+写资产图或 Seedance 提示词之前：读 `_core/references/channel/interview.md` 与 `_core/references/assets/aspect-tracks.md`。**第一问锁定 16:9 / 9:16 / 两条都要，未回答不得写视频词。** 按画幅各编一套镜头词，竖屏不要套横屏构图。交付画幅只约束视频提示词和首尾帧；人物/场景/道具/**贯穿特效模板**只出一套 16:9。**第二问（或从大纲推断）锁剧种**，按 aspect-tracks「剧种 → 必出模板」写出 `fx_templates`（系统面板/法阵/刃光/护盾等），每项 `owner_id`；镜头出现这些特效必须绑定 `fx` 资产。**看清菜单由 readable 身边态或 fullscreen 插入镜二选一**（须 look-dev 确认档位），完整外壳仍禁止和中景人物同框（`SHOT-FX-UI` / `SHOT-FX-TIER`）；owner_only 特效在非持有者被说话时收起（`SHOT-FX-VIS`）。9:16 插入帧纵向堆叠。9:16 必须带头顶留白、高度数字和「只锁身份不锁构图」，见 `shot_quality.PORTRAIT_BOILERPLATE`。再选渠道。一条线渠道不支持该画幅时只暂停该线。生成 lock：`python -m core.lib.lock --project project.json --channel <id> --baseline models/seedance-2.0.baseline.json --out effective-capability.lock.json`（2.5 换对应 baseline）。提交前：`python scripts/validate_project.py project.json --lock effective-capability.lock.json`。
 
 从 H3 复用同一素材时：中性导演谱才是输入，不要硬翻 H3 成品文本。
 
@@ -43,7 +43,7 @@ MiniMax H3 是另一条独立技能。用户选择 H3 时提示 `$minimax-h3-man
 - 图像提示词、视频提示词、平台请求、已提交任务、生成媒体、审核通过和发布批准是不同产物状态。
 - 运行时以当前provider/model_id的文档和工具schema核对模式、时长、素材角色、数量、比例、声音支持与参数。未核实的“官方”社区说法不写成接口事实；schema未知时只交文本草稿。
 - 只为高复用、身份敏感、空间复杂或连续性风险准备参考图。复杂动作先用可审阅的文字动作链和状态表排查因果，再按镜号局部修复；不默认生成多格故事板图片。玄幻仙侠武打按 references/xianxia-martial-action-prompting.md 编写高细节提示词。
-- 测试隔离：凡是测试——单提示词试跑、单元测试、资产生图测试、全流程测试及其输入副本、输出、抽帧、日志和报告——统一放在 `$MANJU_HOME/test-runs/`（默认 `~/.manju/test-runs/`）下，每个测试建立独立子目录，目录名格式为 `YYYYMMDD-HHmmss_<kind>_<slug>`（kind 如 `prompt`、`asset`、`pipeline`、`unit`）。测试产物不写入真实项目目录、不写入技能仓库；真实项目运行时也绝不在项目目录内创建测试内容。测试目录与路径细则见 P5。
+- <!-- shared:roots -->两个根，开场必须确认，不得从用户主目录推断：**生产根** `production_root` 放正式资产、提示词、请求清单、生成媒体、timing 记录（用户指定，如技能仓库 `cases/`；目录用中文分类：人物/场景/道具/系统特效/镜头）；**测试根** `test_root` 放单元测试、校验器样例、明确标注「测试/不进成片」的试跑（默认 `$MANJU_HOME/test-runs/`）。用户说「先出一张看看」「试一下这段」且准备采用结果时，产物属于生产（`draft_candidate`），写生产根。`$MANJU_HOME` 只放渠道档案与 adapter，不放成片。生产根在 Git 仓库内时：文本可入库；图像/视频/音频默认 gitignore，**真人肖像媒体禁止推送公开仓库**。未确认生产根时不落盘生成物。<!-- /shared:roots -->
 
 ## 制作流程
 
@@ -94,7 +94,7 @@ python scripts/validate_project.py path\to\project.json --lock path\to\effective
 python -m unittest discover -s scripts -p "test_*.py"
 ```
 
-测试隔离规则：单提示词试跑、单元测试、资产生图测试、全流程测试及其输入副本、输出、抽帧、日志和报告，一律输出到 `$MANJU_HOME/test-runs/YYYYMMDD-HHmmss_<kind>_<slug>/`；`kind` 取 `prompt`（提示词试跑）、`asset`（资产生图测试）、`pipeline`（全流程测试）、`unit`（单元测试/校验器测试）。测试运行日志和生成的样例写入该子目录的 `99_logs\`，测试项目清单与测试提示词放在同级 `input\`，生成媒体放 `output\`。严禁把测试产物写入真实项目目录或技能仓库；真实项目运行时也绝不在项目目录内创建任何测试内容。正式项目的 manifest 校验不在此列，仍针对项目自身的 `project.json` 执行。
+测试隔离规则：明确标注「测试/不进成片」的单提示词试跑、单元测试、校验器样例，一律输出到 `test_root`（默认 `$MANJU_HOME/test-runs/YYYYMMDD-HHmmss_<kind>_<slug>/`）。用户准备采用的静帧、成片、timing 写 `production_root`，不要因为「先看一眼」就落到 C 盘。正式项目的 manifest 校验仍针对项目自身的 `project.json`。`submit` 前：首次出现的 fx_template、首次 readable/fullscreen、owner_only 与非持有者同框、写实真人人物+特效同框，必须先有 `fx_tier_confirmed`（look-dev 静帧），否则 `SHOT-FX-LOOKDEV`。
 
 `draft`只验证制作计划和版本内结构；任何能力快照都不能作为当前接口的硬限制。`submit`必须有当前接入的已核验 capability 记录（含最短/最长时长、比例、输入类型与声音能力）、真实文件、实际槽位，以及用户明确授权且与提交job ID完全一致的范围和预算上限。授权或能力记录未知时不提交。2.0和2.5的时长及素材基线分别记录在对应参考文件，逐次调用前复核；单集时长与模型生成任务时长分开管理。内容长于当前单任务上限时按语义与动作阶段拆组，保留台词和段缝状态，不切换模型。对白/音色表演原则见 `references/voice-performance-continuity.md`；只有当前版本和服务支持时才使用原生声音输入/语法。玄幻、异能或规则异常特效可读 `references/vfx-event-design.md`，不将特效系统概念冒充模型的底层能力。资产图生成独立执行单张费用门、逐张用户确认、无轮询和无自动重试规则，见 `references/sequential-asset-generation.md`；视频生成授权不自动扩大到资产图或反之。
 

@@ -39,6 +39,15 @@ effective[track] = model baseline ∩ channel ∩ that track's aspect
 - 单次最长时长
 - 一次最多几张**参考图（不算首尾帧）**
 - 生成视频带不带声音
+- 视频时长是区间还是枚举？枚举请列出（如 5/10/15）→ `duration_seconds.allowed`
+- 生成视频是否同期出声（对白/环境）？→ `audio_output: native|none|unknown`
+- 是否允许/本项目是否使用参考音频槽？→ `reference_audio: allowed|forbidden|unsupported`（用户可在 allowed 时仍选 forbidden）
+- 参考图输入方式：裸 URL / 必须先上传为平台资产 → `reference_transport: url|uploaded`；平台资产 ID 能否跨账号复用 → `asset_id_portable: true|false`
+- 真人风控：是否拒收真人肖像？哪类可过 → `realperson_policy: {identity_board: ok|reject|unknown, face_closeup: …, face_composite: …}`
+- 图像分辨率是否同价 → `image_pricing: flat|tiered`；flat 时默认取最高档
+- 失败是否退额度 → `refund_on_failure: true|false`
+
+`unknown` 一律当作未核实：提示词可以写，**不能 submit**，也不能自动降级成后期配音。
 
 ## 第 3 题：模型
 

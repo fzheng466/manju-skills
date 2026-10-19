@@ -7,7 +7,7 @@
   "modes": ["text_only", "reference_image", "multimodal_reference", "frame_anchored"],
   "reference_inputs": { "image": 15, "video": 0, "audio": 0, "total": 15, "status": "declared" },
   "frame_anchors": { "first": true, "last": false },
-  "audio_output": "none",
+  "audio_output": "unknown",
   "native_sound_markers": false,
   "notes": "Do not treat community numbers as hard caps until channel-verified."
 }

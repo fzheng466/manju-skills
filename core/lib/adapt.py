@@ -207,12 +207,27 @@ def preview(job: dict[str, Any], effective: dict[str, Any]) -> dict[str, Any]:
         }
 
     duration = float(job.get("duration_seconds") or 0)
-    max_s = float((effective.get("duration_seconds") or {}).get("max") or duration or 15)
-    min_s = float((effective.get("duration_seconds") or {}).get("min") or 4)
+    dur_cap = effective.get("duration_seconds") or {}
+    max_s = float(dur_cap.get("max") or duration or 15)
+    min_s = float(dur_cap.get("min") or 4)
+    allowed = [int(x) for x in (dur_cap.get("allowed") or []) if isinstance(x, (int, float))]
     splits, actions, blocked = _legal_splits(duration, min_s, max_s, job)
+    snapped = None
+    if allowed and not blocked:
+        dur_i = int(round(duration))
+        if dur_i not in allowed:
+            snap = min((v for v in allowed if v >= dur_i), default=None)
+            if snap is None:
+                actions.append(f"R-DUR-02: {dur_i}s exceeds channel enum {allowed}; split the job")
+                blocked = True
+            else:
+                snapped = snap
+                actions.append(
+                    f"R-DUR-03: {job.get('id') or 'job'} {dur_i}s → {snap}s; tell the user and pad the tail with a hold"
+                )
     if blocked:
         rule = "R-DUR-02"
-        if any(a.startswith("R-DUR-03") for a in actions):
+        if any(a.startswith("R-DUR-03") for a in actions) and snapped is None:
             rule = "R-DUR-03"
         elif any(a.startswith("R-DUR-04") for a in actions):
             rule = "R-DUR-04"
@@ -230,9 +245,39 @@ def preview(job: dict[str, Any], effective: dict[str, Any]) -> dict[str, Any]:
         actions.append(f"R-REF-01: keep {img_cap} refs by REF_PRIORITY, drop {len(dropped)}")
 
     audio = effective.get("audio_output")
-    post_audio = audio in ("none", "unknown")
-    if post_audio:
+    ref_audio = effective.get("reference_audio") or job.get("reference_audio")
+    audio_mode = None
+    post_audio = False
+    if audio == "unknown":
+        actions.append("R-AUD-00: audio capability unknown; ask before compiling dialogue")
+        return {
+            "blocked": True,
+            "rule": "R-AUD-00",
+            "actions": actions,
+            "splits": splits,
+            "kept_references": kept,
+            "dropped_references": dropped,
+            "audio_post_plan": False,
+            "audio_mode": None,
+            "snapped_duration": snapped,
+            "message": actions[-1],
+            "rules_fired": [a.split(":")[0] for a in actions],
+        }
+    if audio in (None, ""):
+        post_audio = True
+        audio_mode = "post_dub"
         actions.append("R-AUD-01: strip generated dialogue/music; write audio_post_plan.json")
+    if audio == "native":
+        if ref_audio in ("forbidden", None, "", "unknown"):
+            audio_mode = "native_text_voice"
+        else:
+            audio_mode = "native_with_ref_audio"
+    elif audio == "none":
+        audio_mode = "post_dub"
+        post_audio = True
+        actions.append("R-AUD-01: strip generated dialogue/music; write audio_post_plan.json")
+    else:
+        audio_mode = "native_text_voice"
 
     return {
         "blocked": False,
@@ -242,6 +287,8 @@ def preview(job: dict[str, Any], effective: dict[str, Any]) -> dict[str, Any]:
         "kept_references": kept,
         "dropped_references": dropped,
         "audio_post_plan": post_audio,
+        "audio_mode": audio_mode,
+        "snapped_duration": snapped,
         "rules_fired": [a.split(":")[0] for a in actions],
     }
 

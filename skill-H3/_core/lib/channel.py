@@ -184,7 +184,12 @@ def merge_effective(
             "channel": supported,
         }
 
-    audio = (caps.get("audio_output") or {}).get("value") or baseline.get("audio_output") or "unknown"
+    # Channel answers beat the baseline. Baseline must not invent "none".
+    audio_raw = (caps.get("audio_output") or {}).get("value")
+    if audio_raw in (None, "", "unknown"):
+        audio = "unknown"
+    else:
+        audio = audio_raw
     b_modes = set(baseline.get("modes") or [])
     c_modes = _as_set(caps.get("modes")) or b_modes
     modes = sorted(b_modes & c_modes) if c_modes else sorted(b_modes)
@@ -199,7 +204,16 @@ def merge_effective(
             "min": min_s,
             "max": max_s,
             "integer_only": bool(c_dur.get("integer_only") or b_dur.get("integer_only")),
+            "allowed": list(c_dur.get("allowed") or b_dur.get("allowed") or []),
         },
+        "reference_audio": (caps.get("reference_audio") or {}).get("value")
+        or (caps.get("reference_audio") if isinstance(caps.get("reference_audio"), str) else None)
+        or "unknown",
+        "reference_transport": (caps.get("reference_transport") or {}).get("value") or "unknown",
+        "asset_id_portable": (caps.get("asset_id_portable") or {}).get("value"),
+        "realperson_policy": (caps.get("realperson_policy") or {}).get("value") or {},
+        "image_pricing": (caps.get("image_pricing") or {}).get("value") or "unknown",
+        "refund_on_failure": (caps.get("refund_on_failure") or {}).get("value"),
         "aspect_ratios": supported,
         "reference_inputs": {
             "image": images,

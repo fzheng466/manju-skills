@@ -68,13 +68,80 @@ def check_prompt(text: str, job: dict[str, Any] | None = None) -> list[str]:
         if hits:
             errors.append(f"SHOT-GENRE: urban project prompt contains xianxia FX {hits}")
     errors.extend(check_speaker_order(body))
+    errors.extend(check_fx_ui(body, aspect, job))
     errors.extend(check_onscreen_text(body, job))
     errors.extend(check_facing_away_performance(body))
     errors.extend(check_four_view_singleton(body))
     errors.extend(check_hud_rear(body))
     errors.extend(check_boilerplate_distance_conflict(body))
+    errors.extend(check_audio_policy(body, job))
+    errors.extend(check_duration_enum(job))
+    errors.extend(check_ref_roles(job))
+    errors.extend(check_fx_visibility(body, job))
+    errors.extend(check_fx_body_and_dialogue(body, job))
+    errors.extend(check_fx_tier(body, job))
+    errors.extend(check_fx_lookdev(job))
+    errors.extend(check_prop_state(body, job))
+    errors.extend(check_production_path(job))
     if aspect == "9:16":
         errors.extend(check_portrait_near(body, job))
+    return errors
+
+
+_SEG_SPLIT = re.compile(r"\[Shot\s*\d+\]|\[\d+(?:\.\d+)?s\s*[-–]\s*\d+(?:\.\d+)?s\]")
+_UI_H = re.compile(r"(面板|界面|UI)[^。；]{0,16}高度约为画面高度的\s*(\d+(?:\.\d+)?)\s*%")
+_FULL_UI = re.compile(r"标题框|标题环|六边形|地台")
+_NO_CAST = re.compile(r"人物不入画|不出现人物")
+_LR_HEX = re.compile(r"左右(两侧)?各(竖排)?\s*[3三]枚")
+
+
+def _confirmed_ui_cap(job: dict[str, Any] | None, aspect: str | None) -> float:
+    job = job or {}
+    confirmed = job.get("fx_tier_confirmed")
+    if isinstance(confirmed, dict) and isinstance(confirmed.get("max_fx_percent"), (int, float)):
+        return float(confirmed["max_fx_percent"])
+    state = str(job.get("fx_state") or job.get("fx_state_in") or "")
+    portrait = aspect == "9:16"
+    defaults = {
+        "off": 0,
+        "presence": 20 if portrait else 25,
+        "collapsed": 12,
+        "readable": 45 if portrait else 50,
+        "fullscreen": 90,
+    }
+    if state in defaults:
+        return float(defaults[state])
+    return 20.0 if portrait else 25.0
+
+
+def check_fx_ui(text: str, aspect: str | None, job: dict[str, Any] | None = None) -> list[str]:
+    """HUD size uses confirmed look-dev; otherwise a safe default. Full chrome still needs an insert."""
+    errors: list[str] = []
+    body = text or ""
+    job = job or {}
+    cap = _confirmed_ui_cap(job, aspect)
+    parts = _SEG_SPLIT.split(body)
+    parts = parts[1:] if len(parts) > 1 else [body]
+    for i, seg in enumerate(parts, 1):
+        ph = [float(x) for x in HEIGHT_IN_PROMPT.findall(seg)]
+        uh = [float(m.group(2)) for m in _UI_H.finditer(seg)]
+        person = bool(ph) and not _NO_CAST.search(seg)
+        if person and uh and max(uh) > cap:
+            errors.append(
+                f"SHOT-FX-TIER: segment {i} UI {max(uh):g}% exceeds confirmed/safe cap {cap:g}%"
+            )
+        if person and uh and max(ph) > 50 and max(uh) > 40 and not job.get("fx_tier_confirmed"):
+            errors.append(
+                f"SHOT-FX-UI: segment {i} person {max(ph):g}% + UI {max(uh):g}% without look-dev; confirm readable tier or cut to insert"
+            )
+        if person and len(set(_FULL_UI.findall(seg))) >= 2:
+            errors.append(
+                f"SHOT-FX-UI: segment {i} puts full UI chrome beside a character; move it to an insert shot"
+            )
+        if aspect == "9:16" and _NO_CAST.search(seg) and _LR_HEX.search(seg):
+            errors.append(
+                f"SHOT-FX-UI: segment {i} 9:16 insert reuses 16:9 left/right 3+3 hex columns; stack vertically"
+            )
     return errors
 
 
@@ -294,6 +361,178 @@ def check_speaker_order(text: str) -> list[str]:
     expected = list(range(1, len(tags) + 1))
     if tags != expected:
         return [f"H3-SX: first speaker must be (S1) then increment; got {tags}"]
+    return []
+
+
+POST_DUB = re.compile(r"后期配音|后期配|配音替换|post[- ]?dub", re.I)
+TURN = re.compile(r"转身|侧身|回头|半转|过肩|背对|三分之二背")
+FX_MOVE = re.compile(r"(移到|退到|缩到).{0,8}(余光|画面边缘|身后|侧后)|收起|消失|收束")
+FX_BETWEEN = re.compile(r"(面板|光幕|界面|法阵|护盾).{0,12}(两人之间|中间|挡在)")
+COVERED_BOWL = re.compile(r"倒扣.{0,6}(碗|空碗)|空碗")
+FORBIDDEN_SCENE_ROLES = {"scene_master"}
+FACE_ROLES = {"fx_lookdev", "fx_text_frame"}
+
+
+def _job_has_dialogue(job: dict[str, Any]) -> bool:
+    for shot in job.get("shots") or []:
+        if isinstance(shot, dict) and shot.get("dialogue"):
+            return True
+    if job.get("utterances"):
+        return True
+    return False
+
+
+def _dialogue_speakers(job: dict[str, Any]) -> set[str]:
+    out: set[str] = set()
+    for shot in job.get("shots") or []:
+        if not isinstance(shot, dict):
+            continue
+        for line in shot.get("dialogue") or []:
+            if isinstance(line, dict) and line.get("speaker_id"):
+                out.add(str(line["speaker_id"]))
+    for u in job.get("utterances") or []:
+        if isinstance(u, dict) and u.get("speaker_id"):
+            out.add(str(u["speaker_id"]))
+    return out
+
+
+def _visible_cast(job: dict[str, Any]) -> list[str]:
+    ledger = job.get("continuity_ledger") if isinstance(job.get("continuity_ledger"), dict) else {}
+    return [str(x) for x in (ledger.get("visible_cast") or job.get("visible_cast") or [])]
+
+
+def _bound_fx(job: dict[str, Any]) -> list[dict[str, Any]]:
+    out = []
+    for b in job.get("asset_bindings") or []:
+        if not isinstance(b, dict):
+            continue
+        if b.get("kind") == "fx" or b.get("asset_role") == "fx" or b.get("fx_class") or b.get("visibility"):
+            out.append(b)
+    return out
+
+
+def check_audio_policy(text: str, job: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    audio = job.get("audio_output") or (job.get("effective") or {}).get("audio_output")
+    if audio == "native" and POST_DUB.search(text or ""):
+        errors.append("SHOT-AUD-POST: channel has native audio; do not hand dialogue to post-dub")
+    if audio == "native" and _job_has_dialogue(job):
+        has_voice = bool(job.get("voice_profile_id"))
+        for shot in job.get("shots") or []:
+            if not isinstance(shot, dict):
+                continue
+            for line in shot.get("dialogue") or []:
+                if isinstance(line, dict) and line.get("voice_profile_id"):
+                    has_voice = True
+        if not has_voice:
+            errors.append("SHOT-AUD-VOICE: dialogue without voice_profile_id identity layer")
+    return errors
+
+
+def check_duration_enum(job: dict[str, Any]) -> list[str]:
+    allowed = job.get("duration_allowed") or ((job.get("effective") or {}).get("duration_seconds") or {}).get("allowed")
+    dur = job.get("duration_seconds")
+    if allowed and isinstance(dur, (int, float)) and int(round(dur)) not in {int(x) for x in allowed}:
+        return [f"SHOT-DUR-ENUM: duration {dur} not in channel enum {list(allowed)}; run adapt snap"]
+    return []
+
+
+def check_ref_roles(job: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    realperson = bool(job.get("realperson") or job.get("live_action"))
+    for b in job.get("asset_bindings") or []:
+        if not isinstance(b, dict):
+            continue
+        role = b.get("ref_role")
+        method = str(b.get("binding_method") or "")
+        if not role:
+            errors.append("SHOT-REF-ROLE: binding without ref_role")
+            continue
+        if role in FORBIDDEN_SCENE_ROLES and method in {"attached_reference", "reference", ""}:
+            errors.append("SHOT-REF-GRID: 2×2 scene master attached; bind a scene_view crop")
+        if realperson and role in FACE_ROLES and b.get("contains_face"):
+            errors.append("SHOT-REF-FACE: face-bearing composite on a real-person channel")
+        if role == "tail_frame":
+            carried = b.get("fx_state")
+            want = job.get("fx_state_in") or job.get("fx_state")
+            if carried and want and carried != want:
+                errors.append("SHOT-REF-INHERIT: tail frame carries FX state this job must drop")
+    return errors
+
+
+def check_fx_visibility(text: str, job: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    owner_fx = [a for a in _bound_fx(job) if a.get("visibility") == "owner_only"]
+    if not owner_fx:
+        return errors
+    owners = {str(a.get("owner_id")) for a in owner_fx if a.get("owner_id")}
+    others = [c for c in _visible_cast(job) if c not in owners]
+    speakers = _dialogue_speakers(job)
+    talking_to_other = bool(others) and bool(speakers & set(others))
+    state = str(job.get("fx_state") or job.get("fx_state_in") or "")
+    if talking_to_other and state in {"readable", "fullscreen"}:
+        errors.append(
+            "SHOT-FX-VIS: owner_only FX stays readable while talking to a non-owner; collapse or drop"
+        )
+    body = text or ""
+    if others and re.search(r"(母亲|她|他).{0,8}(看向|盯着|伸手).{0,6}(面板|光幕|界面)", body):
+        errors.append("SHOT-FX-VIS: non-owner reacts to owner_only FX")
+    return errors
+
+
+def check_fx_body_and_dialogue(text: str, job: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    body = text or ""
+    if not _bound_fx(job) and not re.search(r"光幕|面板|界面|法阵|护盾", body):
+        return errors
+    if TURN.search(body) and not FX_MOVE.search(body):
+        errors.append(
+            "SHOT-FX-BODY: FX stays at chest/front while subject turns; move to periphery, shrink, or collapse"
+        )
+    if len(_visible_cast(job)) >= 2 and _job_has_dialogue(job) and FX_BETWEEN.search(body):
+        errors.append("SHOT-FX-DIALOGUE: FX sits between speakers")
+    return errors
+
+
+def check_fx_tier(text: str, job: dict[str, Any]) -> list[str]:
+    uh = [float(m.group(2)) for m in _UI_H.finditer(text or "")]
+    if not uh:
+        return []
+    cap = _confirmed_ui_cap(job, job.get("aspect_ratio"))
+    if max(uh) > cap:
+        return [f"SHOT-FX-TIER: FX/person size exceeds confirmed (or safe-default) tier {cap:g}%"]
+    return []
+
+
+def check_fx_lookdev(job: dict[str, Any]) -> list[str]:
+    if not job.get("fx_first_appearance"):
+        return []
+    if job.get("fx_tier_confirmed"):
+        return []
+    return ["SHOT-FX-LOOKDEV: first FX appearance without fx_tier_confirmed"]
+
+
+def check_prop_state(text: str, job: dict[str, Any]) -> list[str]:
+    ledger = job.get("continuity_ledger") if isinstance(job.get("continuity_ledger"), dict) else {}
+    env = str(ledger.get("environment_state") or ledger.get("prop_state") or job.get("prop_state") or "")
+    if "covered" in env and COVERED_BOWL.search(text or ""):
+        return ["SHOT-PROP-STATE: prompt state conflicts with continuity ledger"]
+    return []
+
+
+def check_production_path(job: dict[str, Any]) -> list[str]:
+    media = str(job.get("media_path") or "")
+    if not media:
+        return []
+    prod = str(job.get("production_root") or "")
+    test = str(job.get("test_root") or "")
+    home = str(Path.home())
+    if test and test.replace("\\", "/") in media.replace("\\", "/"):
+        return ["PATH-PROD: media path is under test_root"]
+    if home.replace("\\", "/") in media.replace("\\", "/") and (
+        not prod or prod.replace("\\", "/") not in media.replace("\\", "/")
+    ):
+        return ["PATH-PROD: media path is under the user home and outside production_root"]
     return []
 
 

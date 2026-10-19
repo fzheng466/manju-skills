@@ -23,7 +23,10 @@
           "ttl_days": 30
         },
         "frame_anchors": { "value": { "first": true, "last": false }, "status": "declared", "ttl_days": 30 },
-        "audio_output": { "value": "none", "status": "declared", "ttl_days": 60 }
+        "audio_output": { "value": "unknown", "status": "declared", "ttl_days": 60 },
+        "reference_audio": { "value": "unknown", "status": "declared", "ttl_days": 60 },
+        "reference_transport": { "value": "unknown", "status": "declared", "ttl_days": 60 },
+        "image_pricing": { "value": "unknown", "status": "declared", "ttl_days": 90 }
       }
     }
   }
