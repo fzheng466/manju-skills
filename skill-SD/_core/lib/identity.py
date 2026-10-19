@@ -279,7 +279,17 @@ def check_job_identity(
         owner = str(asset.get("owner_id") or asset.get("character_id") or binding.get("character_id") or "")
         if owner:
             used_owners.add(owner)
-        if owner and visible and owner not in visible and asset.get("kind") in {"costume", "wardrobe", "prop", "weapon"}:
+        is_fx = asset.get("kind") == "fx" or asset.get("asset_role") == "fx"
+        if is_fx and not owner:
+            errors.append(f"ID-OWN: job {jid} binds fx template {aid} without owner_id")
+        if is_fx and owner:
+            purpose = str(binding.get("purpose") or "")
+            for cid in characters:
+                if cid != owner and cid in purpose:
+                    errors.append(f"ID-OWN: job {jid} applies {owner}'s fx template {aid} to {cid}")
+        if owner and visible and owner not in visible and (
+            is_fx or asset.get("kind") in {"costume", "wardrobe", "prop", "weapon"}
+        ):
             errors.append(f"ID-OWN: job {jid} binds {aid} owned by off-screen {owner}")
         other = str(asset.get("owner_id") or "")
         for cid, card in characters.items():

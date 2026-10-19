@@ -329,6 +329,46 @@ def test_portrait_near_gate():
         "参考图只锁定身份，不决定构图。"
     )
     assert check_prompt(fixed, {"aspect_ratio": "9:16"}) == []
+    peaky = (
+        PORTRAIT_BOILERPLATE
+        + "9:16竖屏。参考图只锁定身份，不决定构图。头顶上方留出约12%的空间。"
+        "起步约占画面高度40%，停步约占画面高度62%，结尾约占画面高度56%。"
+    )
+    err_peak = check_prompt(peaky, {"aspect_ratio": "9:16"})
+    assert any("peaks" in e for e in err_peak)
+
+
+def test_onscreen_text_facing_hud_and_fourview():
+    from core.lib.shot_quality import check_prompt
+
+    long_txt = (
+        "16:9横屏。手机屏幕上清楚显示："
+        "\"兄弟，钱的事过阵子一定给你说法。尊敬的客户余额很多很多字。\""
+    )
+    assert any("SHOT-TEXT" in e for e in check_prompt(long_txt, {"aspect_ratio": "16:9"}))
+    overlay = long_txt.replace("清楚显示", "文字内容后期叠加，屏幕只需亮度与排版清楚。清楚显示")
+    overlay = (
+        "16:9横屏。屏幕亮起两行消息的版式，文字内容后期叠加；画面中屏幕只需亮度与排版清楚。"
+        "\"兄弟，钱的事过阵子一定给你说法。尊敬的客户余额很多很多字。\""
+    )
+    assert not any("SHOT-TEXT" in e for e in check_prompt(overlay, {"aspect_ratio": "16:9"}))
+    away = "16:9横屏。沈砚三分之二背对镜头，表情从茫然变成哭笑不得，嘴角扯开。"
+    assert any("SHOT-PERF" in e for e in check_prompt(away, {"aspect_ratio": "16:9"}))
+    reverse = away + " At 00:02.000, the camera cuts to 中近景反打。"
+    assert not any("SHOT-PERF" in e for e in check_prompt(reverse, {"aspect_ratio": "16:9"}))
+    four = "16:9横屏。由沈砚16:9四视图主板锁定身份。"
+    assert any("画面中只出现一个沈砚" in e for e in check_prompt(four, {"aspect_ratio": "16:9"}))
+    four_ok = four + "画面中只出现一个沈砚。"
+    assert not any("SHOT-REF: four-view" in e for e in check_prompt(four_ok, {"aspect_ratio": "16:9"}))
+    hud = "16:9横屏。透过半透明界面看沈砚的脸。"
+    assert any("SHOT-HUD" in e for e in check_prompt(hud, {"aspect_ratio": "16:9"}))
+    hud_ok = "16:9横屏。从界面背面只看到发光边框，文字不可见，透过半透明界面看沈砚的脸。"
+    assert not any("SHOT-HUD" in e for e in check_prompt(hud_ok, {"aspect_ratio": "16:9"}))
+    dist = "9:16竖屏。人物停步离镜头约3米。机位在右肩后方约1.5米。"
+    # not a compiled portrait job (no height / Shot) so SHOT-REF boilerplate skipped; distance still fires
+    from core.lib.shot_quality import check_boilerplate_distance_conflict
+
+    assert any("3m conflicts" in e for e in check_boilerplate_distance_conflict(dist))
 
 
 def test_transpile_keeps_frozen_line_and_strips_h3():

@@ -9,7 +9,7 @@ metadata:
 
 ## 第一步：先锁画幅，再面谈渠道（强制）
 
-写资产图或 Seedance 提示词之前：读 `_core/references/channel/interview.md` 与 `_core/references/assets/aspect-tracks.md`。**第一问锁定 16:9 / 9:16 / 两条都要，未回答不得写视频词。** 按画幅各编一套镜头词，竖屏不要套横屏构图。交付画幅只约束视频提示词和首尾帧；人物/场景/道具只出一套 16:9。9:16 必须带头顶留白、高度数字和「只锁身份不锁构图」，见 `shot_quality.PORTRAIT_BOILERPLATE`。再选渠道。一条线渠道不支持该画幅时只暂停该线。生成 lock：`python -m core.lib.lock --project project.json --channel <id> --baseline models/seedance-2.0.baseline.json --out effective-capability.lock.json`（2.5 换对应 baseline）。提交前：`python scripts/validate_project.py project.json --lock effective-capability.lock.json`。
+写资产图或 Seedance 提示词之前：读 `_core/references/channel/interview.md` 与 `_core/references/assets/aspect-tracks.md`。**第一问锁定 16:9 / 9:16 / 两条都要，未回答不得写视频词。** 按画幅各编一套镜头词，竖屏不要套横屏构图。交付画幅只约束视频提示词和首尾帧；人物/场景/道具/**贯穿特效模板**只出一套 16:9。**第二问（或从大纲推断）锁剧种**，按 aspect-tracks「剧种 → 必出模板」写出 `fx_templates`（系统面板/法阵/刃光/护盾等），每项 `owner_id`；镜头出现这些特效必须绑定 `fx` 资产。9:16 必须带头顶留白、高度数字和「只锁身份不锁构图」，见 `shot_quality.PORTRAIT_BOILERPLATE`。再选渠道。一条线渠道不支持该画幅时只暂停该线。生成 lock：`python -m core.lib.lock --project project.json --channel <id> --baseline models/seedance-2.0.baseline.json --out effective-capability.lock.json`（2.5 换对应 baseline）。提交前：`python scripts/validate_project.py project.json --lock effective-capability.lock.json`。
 
 从 H3 复用同一素材时：中性导演谱才是输入，不要硬翻 H3 成品文本。
 
@@ -19,6 +19,7 @@ python scripts/transpile_h3.py --project project.json --job-id JOB001 --profile 
 python -m core.lib.asset_prompt --kind character --aspect 16:9 --sex female --character-id LIN_WAN --file asset-hero.md
 python -m core.lib.identity --project project.json
 # 人物卡必须 presentation_sex=male|female；服装/道具必须 owner_id，禁止男女资产串套。
+python -m core.lib.asset_prompt --kind hud --aspect 16:9 --owner-id CHAR_A --file hud-system.md
 python -m core.lib.shot_quality --job project.json --job-id JOB001 --prompt sd-prompt.md
 ```
 
@@ -32,7 +33,7 @@ python -m core.lib.shot_quality --job project.json --job-id JOB001 --prompt sd-p
 
 MiniMax H3 是另一条独立技能。用户选择 H3 时提示 `$minimax-h3-manju`；不得在本文件输出 H3 的 T2VA/Ref2VA、`(Sx)`、`<d>`、H3配额或字段。
 
-人物身份四视图、场景四向、道具结构板一律只出一套 16:9，L/P 共用，禁止按 9:16 再生成一张身份。视频输出按交付线画幅写提示词（远近/纵深/高度）；不要默认做竖裁资产。人物默认一人一张四视图板：左侧超大正面胸像，右侧并排正面全身、45°侧向全身、背面全身；严禁默认扩成多张头像、九宫格或表情板。只有用户明确需要或单张图确实无法表达结构时才增加资产。规则见 `_core/references/assets/aspect-tracks.md`。
+人物身份四视图、场景四向、道具结构板、贯穿特效模板一律只出一套 16:9，L/P 共用，禁止按 9:16 再生成一张身份。视频输出按交付线画幅写提示词（远近/纵深/高度）；不要默认做竖裁资产。人物默认一人一张四视图板：左侧超大正面胸像，右侧并排正面全身、45°侧向全身、背面全身；严禁默认扩成多张头像、九宫格或表情板。只有用户明确需要或单张图确实无法表达结构时才增加资产。规则见 `_core/references/assets/aspect-tracks.md`。
 
 ## 执行原则
 

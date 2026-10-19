@@ -39,6 +39,14 @@ python -m core.lib.identity --prompt shen.md --sex male --character-id SHEN_YAN
 
 角色卡应带 `signature` / `identification_points`（或从【识别点】【服装】抽取）。刘桂芳板上出现陈汉的「橄榄绿夹克 / 胶布眼镜」报 `ID-SIG`。`python -m core.lib.asset_prompt ... --project project.json` 才会跑这张表。
 
+## 特效模板也要主人
+
+```json
+{"asset_id": "HUD_OWNER_SYSTEM", "kind": "image", "asset_role": "fx", "fx_class": "hud", "owner_id": "CHAR_A"}
+```
+
+系统面板/法阵/护体灵罩绑定**触发者**。主人不在 `visible_cast` 时报 `SHOT-FX-OWNER`；`purpose` 写到别的角色（把 A 的系统板挂到 B）报 `ID-OWN`。两个角色各有系统时各出一张板，靠色相与边框形制区分，不共用。
+
 ## 视频编译
 
 submit 时 `validate_project.py` 会跑身份检查：镜头不得把 A 的服装绑到 B 身上。
