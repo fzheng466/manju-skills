@@ -1,6 +1,7 @@
 """Gates from the 2026-10-19 live-action production audit (Opus skill-audit)."""
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from core.lib.adapt import preview
@@ -189,10 +190,10 @@ def test_confirmed_readable_tier_allows_large_panel():
         "aspect_ratio": "9:16",
         "fx_state": "readable",
         "fx_tier_confirmed": {"max_fx_percent": 45, "max_person_percent": 58},
-        "visible_cast": ["CHEN_HAN"],
+        "visible_cast": ["OWNER_A"],
     }
     prompt = (
-        "9:16竖屏。陈汉约占画面高度54%。"
+        "9:16竖屏。OWNER_A约占画面高度54%。"
         "面板高度约为画面高度的42%，位于下巴以下。"
     )
     err = check_prompt(prompt, job)
@@ -202,7 +203,7 @@ def test_confirmed_readable_tier_allows_large_panel():
 def test_unconfirmed_portrait_panel_40_fails_tier():
     job = {"aspect_ratio": "9:16"}
     prompt = (
-        "9:16竖屏。陈汉约占画面高度54%。"
+        "9:16竖屏。OWNER_A约占画面高度54%。"
         "面板高度约为画面高度的40%，位于下巴以下。"
     )
     err = check_prompt(prompt, job)
@@ -214,9 +215,9 @@ def test_turn_without_collapse_fails_body_gate():
         "aspect_ratio": "9:16",
         "asset_bindings": [{"asset_id": "HUD", "kind": "fx", "fx_class": "hud", "ref_role": "fx_shell"}],
     }
-    fail = check_prompt("9:16竖屏。陈汉转身回头，胸前光幕仍在。", job)
+    fail = check_prompt("9:16竖屏。OWNER_A转身回头，胸前光幕仍在。", job)
     assert any("SHOT-FX-BODY" in e for e in fail)
-    ok = check_prompt("9:16竖屏。陈汉转身回头，光幕收到余光。", job)
+    ok = check_prompt("9:16竖屏。OWNER_A转身回头，光幕收到余光。", job)
     assert not any("SHOT-FX-BODY" in e for e in ok)
 
 
@@ -245,8 +246,15 @@ def test_prop_state_legacy_environment_state_covered():
         "aspect_ratio": "9:16",
         "continuity_ledger": {"environment_state": "covered"},
     }
-    err = check_job(job, "9:16竖屏。桌上倒扣着一只空碗。")
+    err = check_job(job, "9:16竖屏。纱罩被掀开。")
     assert any("SHOT-PROP-STATE" in e for e in err)
+
+
+def test_prop_state_generic_lid_and_cup():
+    lid = {"aspect_ratio": "9:16", "continuity_ledger": {"prop_state": {"PROP_LID": "covered"}}}
+    assert any("SHOT-PROP-STATE" in e for e in check_job(lid, "9:16竖屏。盖子掀开。"))
+    cup = {"aspect_ratio": "9:16", "continuity_ledger": {"prop_state": {"PROP_CUP": "intact"}}}
+    assert any("SHOT-PROP-STATE" in e for e in check_job(cup, "9:16竖屏。杯子碎了。"))
 
 
 def test_home_media_path_outside_production_root():
@@ -288,10 +296,20 @@ def test_dialogue_needs_voice_profile_when_native():
     job = {
         "aspect_ratio": "9:16",
         "audio_output": "native",
-        "utterances": [{"speaker_id": "CHEN_HAN", "text": "妈——"}],
+        "utterances": [{"speaker_id": "OWNER_A", "text": "我没事。"}],
     }
-    err = check_job(job, "9:16竖屏。陈汉说话。")
+    err = check_job(job, "9:16竖屏。OWNER_A说话。")
     assert any("SHOT-AUD-VOICE" in e for e in err)
+
+
+def test_utterance_voice_profile_satisfies_native_audio():
+    job = {
+        "aspect_ratio": "9:16",
+        "audio_output": "native",
+        "utterances": [{"speaker_id": "OWNER_A", "text": "我没事。", "voice_profile_id": "OWNER_A_V1"}],
+    }
+    err = check_job(job, "9:16竖屏。")
+    assert not any("SHOT-AUD-VOICE" in e for e in err)
 
 
 def test_submit_without_lock_is_blocked():
@@ -389,6 +407,28 @@ def test_path_variable_expansion_is_under_test_root():
 def test_missing_production_root_is_blocked():
     job = {"aspect_ratio": "9:16", "media_path": "D:/somewhere/clip.mp4", "test_root": "D:/test-runs"}
     err = check_job(job, "9:16竖屏。")
+    assert any("PATH-PROD" in e for e in err)
+
+
+def test_path_manju_home_defaults_when_env_unset():
+    previous = os.environ.pop("MANJU_HOME", None)
+    try:
+        job = {
+            "aspect_ratio": "9:16",
+            "media_path": str(Path.home() / ".manju" / "test-runs" / "x.mp4"),
+            "production_root": r"D:\最新版本视频优化skill\cases",
+            "test_root": "$MANJU_HOME/test-runs",
+        }
+        err = check_job(job, "9:16竖屏。")
+        assert any("PATH-PROD" in e for e in err)
+    finally:
+        if previous is not None:
+            os.environ["MANJU_HOME"] = previous
+
+
+def test_submit_without_production_root_is_blocked():
+    job = {"aspect_ratio": "9:16"}
+    err = check_job(job, "9:16竖屏。", stage="submit", lock={"effective": {"audio_output": "native", "duration_seconds": {"min": 4, "max": 15}}})
     assert any("PATH-PROD" in e for e in err)
 
 

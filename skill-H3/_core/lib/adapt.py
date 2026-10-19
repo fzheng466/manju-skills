@@ -221,7 +221,7 @@ def preview(job: dict[str, Any], effective: dict[str, Any]) -> dict[str, Any]:
         if dur_i in allowed and dur_i <= max_s + 0.001:
             splits, actions, blocked = [{"start": 0.0, "end": duration or max_s, "fallback": "none"}], [], False
         else:
-            duration_options = _enum_options(duration, allowed, max_s)
+            duration_options = _enum_options(duration, allowed, max_s, _dialogue_spans(job))
             if not duration_options:
                 actions = [
                     f"R-DUR-02: {job.get('id') or 'job'} {dur_i}s has no legal option in channel enum "
@@ -331,13 +331,26 @@ def piece_list(pieces: list[int]) -> str:
     return "+".join(str(x) for x in pieces)
 
 
-def _enum_piece_combo(target: int, allowed: list[int], max_pieces: int = 5) -> list[int] | None:
-    """Smallest enum composition whose pieces sum to target (at least 2 pieces)."""
+def _enum_piece_combo(
+    target: int,
+    allowed: list[int],
+    spans: list[tuple[float, float, str]],
+    max_pieces: int = 5,
+) -> list[int] | None:
+    """Enum composition whose internal cut points do not fall inside a spoken line."""
     vals = sorted({int(v) for v in allowed if int(v) > 0}, reverse=True)
+
+    def cuts_ok(path: list[int]) -> bool:
+        cursor = 0.0
+        for piece in path[:-1]:
+            cursor += piece
+            if _cut_inside_dialogue(cursor, spans):
+                return False
+        return True
 
     def rec(rem: int, path: list[int]) -> list[int] | None:
         if rem == 0:
-            return path if len(path) >= 2 else None
+            return path if len(path) >= 2 and cuts_ok(path) else None
         if len(path) >= max_pieces:
             return None
         for v in vals:
@@ -350,7 +363,12 @@ def _enum_piece_combo(target: int, allowed: list[int], max_pieces: int = 5) -> l
     return rec(target, [])
 
 
-def _enum_options(duration: float, allowed: list[int], max_s: float) -> list[dict[str, Any]]:
+def _enum_options(
+    duration: float,
+    allowed: list[int],
+    max_s: float,
+    spans: list[tuple[float, float, str]],
+) -> list[dict[str, Any]]:
     """R-DUR-05: pad/trim for in-range durations; enum composition for over-max jobs."""
     target = int(round(duration))
     opts: list[dict[str, Any]] = []
@@ -362,7 +380,7 @@ def _enum_options(duration: float, allowed: list[int], max_s: float) -> list[dic
         if down is not None and 0 < target - down <= 2:
             opts.append({"action": "trim", "duration": down, "delta_seconds": target - down})
     if not opts:
-        combo = _enum_piece_combo(target, allowed)
+        combo = _enum_piece_combo(target, allowed, spans)
         if combo:
             opts.append({"action": "split_enum", "pieces": combo, "sum_seconds": sum(combo)})
     return opts

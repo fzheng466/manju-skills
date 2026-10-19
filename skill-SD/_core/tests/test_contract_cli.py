@@ -283,6 +283,39 @@ class AdaptCliTests(unittest.TestCase):
         self.assertTrue(payload.get("blocked"))
         self.assertEqual(payload.get("rule"), "R-DUR-02")
 
+    def test_20s_enum_split_does_not_cut_inside_dialogue(self) -> None:
+        write_json(self.job_path, {
+            "id": "J1",
+            "duration_seconds": 20,
+            "shots": [
+                {
+                    "id": "S1",
+                    "start_seconds": 0,
+                    "end_seconds": 20,
+                    "dialogue": [
+                        {"utterance_id": "U1", "text": "一句台词", "start_seconds": 13, "end_seconds": 17}
+                    ],
+                }
+            ],
+        })
+        write_json(self.lock_path, {
+            "effective": {
+                "duration_seconds": {"min": 4, "max": 15, "allowed": [5, 10, 15]},
+                "reference_inputs": {"image": 5},
+                "audio_output": "native",
+            }
+        })
+        proc = run_cli([
+            "-m", "core.lib.adapt",
+            "--job", str(self.job_path),
+            "--lock", str(self.lock_path),
+        ])
+        payload = json.loads(proc.stdout)
+        self.assertFalse(payload.get("blocked"))
+        self.assertEqual(payload["duration_options"][0]["pieces"], [10, 10])
+        cuts = [s["end"] for s in payload["splits"][:-1]]
+        self.assertNotIn(15.0, cuts)
+
 
 class SharedDocDriftTests(unittest.TestCase):
     def _module(self):

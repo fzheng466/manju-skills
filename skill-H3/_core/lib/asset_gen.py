@@ -206,6 +206,9 @@ def cmd_next(project: dict[str, Any], *, channel_id: str, budget: float, confirm
         for e in errors:
             print(f"FAIL: {e}")
         return 1
+    if not project.get("production_root"):
+        print("ERROR: PATH-PROD: production_root not set; refusing to spend before generation", file=sys.stderr)
+        return 1
     price = _price(ch)
     if price is None:
         print("ERROR: channel.image_gen.price_per_image unknown — refuse", file=sys.stderr)

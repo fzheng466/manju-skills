@@ -34,7 +34,8 @@ def compare_shared(a_text: str, b_text: str) -> list[str]:
 
 
 def sha(p: Path) -> str:
-    return hashlib.sha256(p.read_bytes()).hexdigest()
+    # Match vendor.py: hash normalized line endings, not checkout-specific CRLF.
+    return hashlib.sha256(p.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
 
 
 def core_files() -> dict[str, str]:

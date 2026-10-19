@@ -13,7 +13,8 @@ SKILLS = [ROOT / "skill-H3", ROOT / "skill-SD"]
 
 
 def sha256(p: Path) -> str:
-    return hashlib.sha256(p.read_bytes()).hexdigest()
+    # Normalize line endings so Windows checkout / autocrlf cannot drift the lock.
+    return hashlib.sha256(p.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
 
 
 def main() -> None:

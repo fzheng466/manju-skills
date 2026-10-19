@@ -497,7 +497,7 @@ def test_master_assets_reject_portrait_aspect():
     board = (
         "9:16竖屏男性角色四视图。正面全身、45°侧面全身、背面全身。双手空置。喉结可见。"
     )
-    err = check_text("character", board, "9:16", sex="male", character_id="CHEN_HAN")
+    err = check_text("character", board, "9:16", sex="male", character_id="OWNER_A")
     assert any("identity/prop masters are 16:9" in e for e in err)
     scene = "9:16竖屏场景四向结构板。【四向】正向。"
     assert any("derivative-of" in e for e in check_text("scene", scene, "9:16"))
@@ -517,27 +517,27 @@ def test_identity_signature_cross():
     from core.lib.identity import check_signature_cross, check_project
 
     characters = {
-        "CHEN_HAN": {
-            "character_id": "CHEN_HAN",
-            "name": "陈汉",
+        "OWNER_A": {
+            "character_id": "OWNER_A",
+            "name": "角色A",
             "presentation_sex": "male",
             "prompt": "【识别点】①黑框方形眼镜，左侧镜腿中段用白色医用胶布缠了三圈。深橄榄绿旧夹克。",
         },
-        "LIU_GUIFANG": {
-            "character_id": "LIU_GUIFANG",
-            "name": "刘桂芳",
+        "NON_OWNER_B": {
+            "character_id": "NON_OWNER_B",
+            "name": "角色B",
             "presentation_sex": "female",
             "prompt": "【识别点】①指甲缝花土。藏青围裙。",
         },
     }
-    mixed = "16:9横屏女性，刘桂芳，深橄榄绿旧夹克，黑框眼镜胶布。正面全身、45°侧面全身、背面全身。双手空置。"
-    err = check_signature_cross(mixed, "LIU_GUIFANG", characters)
-    assert any("ID-SIG" in e and "CHEN_HAN" in e for e in err)
+    mixed = "16:9横屏女性，角色B，深橄榄绿旧夹克，黑框眼镜胶布。正面全身、45°侧面全身、背面全身。双手空置。"
+    err = check_signature_cross(mixed, "NON_OWNER_B", characters)
+    assert any("ID-SIG" in e and "OWNER_A" in e for e in err)
     project = {
         "stage": "draft",
         "characters": [
-            {**characters["CHEN_HAN"]},
-            {**characters["LIU_GUIFANG"], "prompt": mixed},
+            {**characters["OWNER_A"]},
+            {**characters["NON_OWNER_B"], "prompt": mixed},
         ],
     }
     assert any("ID-SIG" in e for e in check_project(project))
@@ -552,9 +552,9 @@ def test_urban_xianxia_fx_and_speaker_order():
     assert any("SHOT-GENRE" in e for e in err)
     hud = "16:9横屏，当代北方工业城市。淡蓝色半透明扁平矩形界面，像手机全息投影。"
     assert not any("SHOT-GENRE" in e for e in check_prompt(hud, {"aspect_ratio": "16:9", "genre": "urban"}))
-    bad_sx = "刘桂芳 (S2)，<d>[Chinese] 咋了？</d> 陈汉 (S1)，<d>[Chinese] 妈。</d>"
+    bad_sx = "角色B (S2)，<d>[Chinese] 怎么了？</d> 角色A (S1)，<d>[Chinese] 我没事。</d>"
     assert any("H3-SX" in e for e in check_speaker_order(bad_sx))
-    good_sx = "刘桂芳 (S1)，<d>[Chinese] 咋了？</d> 陈汉 (S2)，<d>[Chinese] 妈。</d>"
+    good_sx = "角色B (S1)，<d>[Chinese] 怎么了？</d> 角色A (S2)，<d>[Chinese] 我没事。</d>"
     assert check_speaker_order(good_sx) == []
     l = "巷口左侧一根锈蚀的铁皮路灯杆"
     p = "画面中轴一根锈蚀的铁皮路灯杆"

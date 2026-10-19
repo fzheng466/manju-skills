@@ -9,7 +9,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from .channel import normalize_audio_output
+from .channel import manju_home, normalize_audio_output
 
 VAGUE_PERF = re.compile(r"眼神复杂|气场强|表情微妙|很有戏|情绪饱满|眼神深邃|杀气很重|表情很冷|气场全开")
 MOVE_TOKEN = r"(推轨|拉轨|推近|拉远|横移|横摇|竖摇|摇摄|升降|环绕|变焦)"
@@ -106,6 +106,14 @@ _NO_CAST = re.compile(r"人物不入画|不出现人物")
 _LR_HEX = re.compile(r"左右(两侧)?各(竖排)?\s*[3三]枚")
 
 
+def _expand_path(raw: Any) -> str:
+    """$MANJU_HOME defaults to ~/.manju even when the env var is unset."""
+    text = str(raw or "")
+    home = manju_home().as_posix()
+    text = text.replace("${MANJU_HOME}", home).replace("$MANJU_HOME", home)
+    return os.path.expanduser(os.path.expandvars(text))
+
+
 def _ctx(job: dict[str, Any], lock: dict[str, Any] | None, project: dict[str, Any] | None = None) -> dict[str, Any]:
     """Read-only view: lock track wins over job fields; project supplies roots/policy."""
     eff: dict[str, Any] = {}
@@ -127,7 +135,7 @@ def _ctx(job: dict[str, Any], lock: dict[str, Any] | None, project: dict[str, An
         "realperson_policy": eff.get("realperson_policy") or {},
         "reference_transport": eff.get("reference_transport"),
         "production_root": project.get("production_root") or job.get("production_root"),
-        "test_root": os.path.expandvars(str(project.get("test_root") or job.get("test_root") or "")),
+        "test_root": _expand_path(project.get("test_root") or job.get("test_root") or ""),
         "lock_present": bool(lock),
         "effective": eff,
     }
@@ -509,6 +517,9 @@ def check_audio_policy(text: str, job: dict[str, Any], ctx: dict[str, Any] | Non
             for line in shot.get("dialogue") or []:
                 if isinstance(line, dict) and line.get("voice_profile_id"):
                     has_voice = True
+        for utterance in job.get("utterances") or []:
+            if isinstance(utterance, dict) and utterance.get("voice_profile_id"):
+                has_voice = True
         if not has_voice:
             errors.append("SHOT-AUD-VOICE: dialogue without voice_profile_id identity layer")
     return errors
@@ -699,7 +710,7 @@ STATE_LEXICON: dict[str, tuple[str, ...]] = {
     "open": ("开着", "敞开", "打开"),
     "closed": ("关着", "关上", "紧闭"),
     "covered": ("盖着", "罩着"),
-    "uncovered": ("揭开", "掀开", "空碗", "倒扣"),
+    "uncovered": ("揭开", "掀开", "未盖", "盖子打开"),
     "lit_steady": ("灯光稳定", "常亮"),
     "flicker": ("闪烁", "忽明忽暗", "乱闪"),
     "intact": ("完好",),
@@ -711,7 +722,11 @@ OPPOSITE = {
     "lit_steady": "flicker", "flicker": "lit_steady",
     "intact": "broken", "broken": "intact",
 }
-_GENERIC_PROP_NAMES = {"door": "门", "window": "窗", "lamp": "灯", "bowl": "碗", "cover": "罩"}
+_GENERIC_PROP_NAMES = {
+    "door": "门", "window": "窗", "lamp": "灯", "bowl": "碗", "cover": "罩",
+    "lid": "盖", "cup": "杯", "glass": "杯", "bottle": "瓶", "phone": "手机",
+    "box": "盒", "key": "钥匙",
+}
 
 
 def _prop_mentioned(text: str, prop_id: str, assets_by_id: dict[str, dict[str, Any]] | None) -> bool:
@@ -769,7 +784,7 @@ def check_prop_state(
 
 
 def _norm_path(raw: Any) -> str:
-    value = os.path.expanduser(os.path.expandvars(str(raw or "")))
+    value = _expand_path(raw)
     try:
         return Path(value).resolve().as_posix().lower()
     except OSError:
@@ -808,6 +823,8 @@ def check_job(
     ctx = _ctx(job, lock, project)
     if stage == "submit" and not ctx["lock_present"]:
         errors.append("SHOT-LOCK: submit-stage gates require --lock")
+    if stage == "submit" and not ctx.get("production_root") and not job.get("media_path"):
+        errors.append("PATH-PROD: production_root not set for submit; refuse to place generated media")
     errors.extend(check_prompt(prompt_text, job, assets_by_id, lock, project))
     errors.extend(check_fx_bindings(job, prompt_text, assets_by_id))
     scales: list[str] = []
