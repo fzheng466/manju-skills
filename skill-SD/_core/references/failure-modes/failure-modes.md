@@ -21,7 +21,7 @@
 | FM-15 | 完整 UI 和中景人物同框，菜单看不清或人物被挤没 | 编译 | 未确认档位时用安全默认；确认 readable 后按 `fx_tier_confirmed`；全壳仍走插入镜；`SHOT-FX-UI` / `SHOT-FX-TIER` |
 | FM-16 | 渠道能出声却输出后期配音 / 删对白 | 面谈/adapt | audio_output 渠道值优先；unknown 阻断；`SHOT-AUD-POST` |
 | FM-17 | 同一角色跨镜换声 | 编译 | voice_profile 身份层逐字相同，只改表演层；`SHOT-AUD-VOICE` |
-| FM-18 | 时长不在渠道枚举 | 面谈/adapt | duration.allowed + R-DUR-03 吸附并告知；`SHOT-DUR-ENUM` |
+| FM-18 | 时长不在渠道枚举 | 面谈/adapt | duration.allowed + R-DUR-05 给出 pad/trim/split 选项，用户确认后回写 `duration_snapped_from`；`SHOT-DUR-ENUM` / `SHOT-DUR-ACK` / `SHOT-DUR-TC` |
 | FM-19 | 2×2 场景整板进参考，模型发明结构/丢地标 | 绑定 | ref_role=scene_view 单格；`SHOT-REF-GRID` |
 | FM-20 | 真人风控拒图 | 绑定/渠道 | realperson_policy；带脸合成静帧不进参考；`SHOT-REF-FACE` |
 | FM-21 | 私有特效被非持有者看见/夹在对话中间 | 编译 | visibility=owner_only；`SHOT-FX-VIS` / `SHOT-FX-DIALOGUE` |

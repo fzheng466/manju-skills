@@ -15,13 +15,20 @@ class AssetGenTests(unittest.TestCase):
         os.environ["MANJU_HOME"] = str(self.home)
         self.adapter = self.home / "adapters"
         self.adapter.mkdir()
+        self.production = self.home / "production"
+        self.production.mkdir()
         self.calls = self.home / "calls.txt"
         (self.adapter / "fake.py").write_text(
             "from pathlib import Path\n"
             "CALLS = Path(r'''%s''')\n"
             "def generate(payload):\n"
             "    CALLS.write_text(__import__('json').dumps(payload), encoding='utf-8')\n"
-            "    return {'paths': ['a.png', 'b.png'], 'n': payload.get('n')}\n" % self.calls.as_posix(),
+            "    return {'paths': [r'''%s''', r'''%s'''], 'n': payload.get('n')}\n"
+            % (
+                self.calls.as_posix(),
+                (self.production / "a.png").as_posix(),
+                (self.production / "b.png").as_posix(),
+            ),
             encoding="utf-8",
         )
         (self.home / "channels").mkdir()
@@ -40,6 +47,7 @@ class AssetGenTests(unittest.TestCase):
         self.project = {
             "project_id": "p1",
             "stage": "draft",
+            "production_root": str(self.production),
             "characters": [{"character_id": "SHEN_YAN", "name": "沈砚", "presentation_sex": "male"}],
             "assets": [
                 {
@@ -81,7 +89,7 @@ class AssetGenTests(unittest.TestCase):
         item = q["items"][0]
         self.assertEqual(item["status"], "awaiting_review")
         self.assertTrue(item.get("anomaly"))
-        self.assertEqual(item.get("path"), "a.png")
+        self.assertEqual(item.get("path"), (self.production / "a.png").as_posix())
         text = self.calls.read_text(encoding="utf-8")
         self.assertNotIn("http", text.lower())
 

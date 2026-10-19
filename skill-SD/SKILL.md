@@ -20,7 +20,7 @@ python -m core.lib.asset_prompt --kind character --aspect 16:9 --sex female --ch
 python -m core.lib.identity --project project.json
 # 人物卡必须 presentation_sex=male|female；服装/道具必须 owner_id，禁止男女资产串套。
 python -m core.lib.asset_prompt --kind hud --aspect 16:9 --owner-id CHAR_A --file hud-system.md
-python -m core.lib.shot_quality --job project.json --job-id JOB001 --prompt sd-prompt.md
+python -m core.lib.shot_quality --job project.json --job-id JOB001 --prompt sd-prompt.md --lock effective-capability.lock.json --stage submit
 ```
 
 映射表 `references/transpile/field-map.md`；风格层 `references/aesthetic/`。禁止把 `<d>` `(Sx)` `T2VA` 带进 Seedance 正文。

@@ -7,6 +7,8 @@ import math
 from pathlib import Path
 from typing import Any
 
+from .channel import AUDIO_ALIASES
+
 REF_PRIORITY = (
     "frame_anchor",
     "primary_speaker_board",
@@ -211,23 +213,53 @@ def preview(job: dict[str, Any], effective: dict[str, Any]) -> dict[str, Any]:
     max_s = float(dur_cap.get("max") or duration or 15)
     min_s = float(dur_cap.get("min") or 4)
     allowed = [int(x) for x in (dur_cap.get("allowed") or []) if isinstance(x, (int, float))]
-    splits, actions, blocked = _legal_splits(duration, min_s, max_s, job)
     snapped = None
-    if allowed and not blocked:
+    duration_options: list[dict[str, Any]] = []
+
+    if allowed:
         dur_i = int(round(duration))
-        if dur_i not in allowed:
-            snap = min((v for v in allowed if v >= dur_i), default=None)
-            if snap is None:
-                actions.append(f"R-DUR-02: {dur_i}s exceeds channel enum {allowed}; split the job")
-                blocked = True
+        if dur_i in allowed and dur_i <= max_s + 0.001:
+            splits, actions, blocked = [{"start": 0.0, "end": duration or max_s, "fallback": "none"}], [], False
+        else:
+            duration_options = _enum_options(duration, allowed, max_s)
+            if not duration_options:
+                actions = [
+                    f"R-DUR-02: {job.get('id') or 'job'} {dur_i}s has no legal option in channel enum "
+                    f"{allowed} (max {max_s:g}s): use a pad_action inside the max, or split into enum pieces"
+                ]
+                return {
+                    "blocked": True,
+                    "rule": "R-DUR-02",
+                    "actions": actions,
+                    "splits": [{"start": 0.0, "end": duration}],
+                    "duration_options": [],
+                    "message": actions[-1],
+                    "rules_fired": ["R-DUR-02"],
+                }
+            first = duration_options[0]
+            if first["action"] == "split_enum":
+                pieces = [float(x) for x in first["pieces"]]
+                splits = []
+                cursor = 0.0
+                for piece in pieces:
+                    splits.append({"start": round(cursor, 3), "end": round(cursor + piece, 3), "fallback": "enum"})
+                    cursor += piece
+                actions = [
+                    f"R-DUR-05: {job.get('id') or 'job'} {dur_i}s split into enum pieces {piece_list(first['pieces'])}; needs duration_user_ack"
+                ]
             else:
-                snapped = snap
-                actions.append(
-                    f"R-DUR-03: {job.get('id') or 'job'} {dur_i}s → {snap}s; tell the user and pad the tail with a hold"
-                )
+                snapped = int(first["duration"])
+                splits = [{"start": 0.0, "end": duration or max_s, "fallback": "none"}]
+                actions = [
+                    f"R-DUR-05: {job.get('id') or 'job'} {dur_i}s → {snapped}s ({first['action']}); needs duration_user_ack"
+                ]
+            blocked = False
+    else:
+        splits, actions, blocked = _legal_splits(duration, min_s, max_s, job)
+
     if blocked:
         rule = "R-DUR-02"
-        if any(a.startswith("R-DUR-03") for a in actions) and snapped is None:
+        if any(a.startswith("R-DUR-03") for a in actions):
             rule = "R-DUR-03"
         elif any(a.startswith("R-DUR-04") for a in actions):
             rule = "R-DUR-04"
@@ -244,12 +276,14 @@ def preview(job: dict[str, Any], effective: dict[str, Any]) -> dict[str, Any]:
         dropped = [refs[i] for i in range(len(refs)) if i not in keep_idx]
         actions.append(f"R-REF-01: keep {img_cap} refs by REF_PRIORITY, drop {len(dropped)}")
 
-    audio = effective.get("audio_output")
+    audio_raw = effective.get("audio_output")
+    audio = AUDIO_ALIASES.get(audio_raw, audio_raw)
     ref_audio = effective.get("reference_audio") or job.get("reference_audio")
     audio_mode = None
     post_audio = False
-    if audio == "unknown":
-        actions.append("R-AUD-00: audio capability unknown; ask before compiling dialogue")
+    if audio not in {"native", "none", "sfx_only"}:
+        # None / "" / unknown / 任何未知渠道值：只阻断，不降级成后期配音
+        actions.append(f"R-AUD-00: audio capability unknown or unsupported ({audio_raw!r}); ask before compiling dialogue")
         return {
             "blocked": True,
             "rule": "R-AUD-00",
@@ -260,13 +294,10 @@ def preview(job: dict[str, Any], effective: dict[str, Any]) -> dict[str, Any]:
             "audio_post_plan": False,
             "audio_mode": None,
             "snapped_duration": snapped,
+            "duration_options": duration_options,
             "message": actions[-1],
             "rules_fired": [a.split(":")[0] for a in actions],
         }
-    if audio in (None, ""):
-        post_audio = True
-        audio_mode = "post_dub"
-        actions.append("R-AUD-01: strip generated dialogue/music; write audio_post_plan.json")
     if audio == "native":
         if ref_audio in ("forbidden", None, "", "unknown"):
             audio_mode = "native_text_voice"
@@ -276,8 +307,10 @@ def preview(job: dict[str, Any], effective: dict[str, Any]) -> dict[str, Any]:
         audio_mode = "post_dub"
         post_audio = True
         actions.append("R-AUD-01: strip generated dialogue/music; write audio_post_plan.json")
-    else:
-        audio_mode = "native_text_voice"
+    else:  # sfx_only
+        audio_mode = "post_dub"
+        post_audio = True
+        actions.append("R-AUD-02: channel renders SFX only; dialogue to post, keep SFX")
 
     return {
         "blocked": False,
@@ -289,9 +322,50 @@ def preview(job: dict[str, Any], effective: dict[str, Any]) -> dict[str, Any]:
         "audio_post_plan": post_audio,
         "audio_mode": audio_mode,
         "snapped_duration": snapped,
+        "duration_options": duration_options,
         "rules_fired": [a.split(":")[0] for a in actions],
     }
 
+
+def piece_list(pieces: list[int]) -> str:
+    return "+".join(str(x) for x in pieces)
+
+
+def _enum_piece_combo(target: int, allowed: list[int], max_pieces: int = 5) -> list[int] | None:
+    """Smallest enum composition whose pieces sum to target (at least 2 pieces)."""
+    vals = sorted({int(v) for v in allowed if int(v) > 0}, reverse=True)
+
+    def rec(rem: int, path: list[int]) -> list[int] | None:
+        if rem == 0:
+            return path if len(path) >= 2 else None
+        if len(path) >= max_pieces:
+            return None
+        for v in vals:
+            if v <= rem:
+                got = rec(rem - v, path + [v])
+                if got:
+                    return got
+        return None
+
+    return rec(target, [])
+
+
+def _enum_options(duration: float, allowed: list[int], max_s: float) -> list[dict[str, Any]]:
+    """R-DUR-05: pad/trim for in-range durations; enum composition for over-max jobs."""
+    target = int(round(duration))
+    opts: list[dict[str, Any]] = []
+    if target <= max_s + 0.001:
+        up = min((v for v in allowed if v >= target), default=None)
+        down = max((v for v in allowed if v <= target), default=None)
+        if up is not None and up > target and (up - target) / up <= 0.25:
+            opts.append({"action": "pad_action", "duration": up, "delta_seconds": up - target})
+        if down is not None and 0 < target - down <= 2:
+            opts.append({"action": "trim", "duration": down, "delta_seconds": target - down})
+    if not opts:
+        combo = _enum_piece_combo(target, allowed)
+        if combo:
+            opts.append({"action": "split_enum", "pieces": combo, "sum_seconds": sum(combo)})
+    return opts
 
 def main() -> int:
     p = argparse.ArgumentParser(description="Preview adaptive compile for one job")

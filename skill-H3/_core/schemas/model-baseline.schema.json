@@ -13,6 +13,7 @@
     "reference_inputs": { "type": "object" },
     "frame_anchors": { "type": "object" },
     "audio_output": { "type": "string" },
+    "audio_output_documented": { "type": "string" },
     "prompt_max_chars": { "type": "integer" },
     "notes": { "type": "string" }
   }

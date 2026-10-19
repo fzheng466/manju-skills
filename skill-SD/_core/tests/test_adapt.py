@@ -27,7 +27,7 @@ def test_split_10s_channel():
 
 def test_split_does_not_emit_illegal_short_piece():
     job = {"duration_seconds": 10.5}
-    eff = {"duration_seconds": {"min": 4, "max": 10}}
+    eff = {"duration_seconds": {"min": 4, "max": 10}, "audio_output": "none"}
     p = preview(job, eff)
     assert p["blocked"] is False
     assert all(4 <= s["end"] - s["start"] <= 10.001 for s in p["splits"])
@@ -169,7 +169,7 @@ def test_split_on_dialogue_end_not_mid_line():
             }
         ],
     }
-    p = preview(job, {"duration_seconds": {"min": 4, "max": 10}})
+    p = preview(job, {"duration_seconds": {"min": 4, "max": 10}, "audio_output": "none"})
     assert p["blocked"] is False
     assert all(s.get("fallback") == "beats" for s in p["splits"])
     edges = [s["end"] for s in p["splits"][:-1]]
@@ -192,7 +192,7 @@ def test_split_blocks_when_only_cut_is_inside_line():
             }
         ],
     }
-    p = preview(job, {"duration_seconds": {"min": 4, "max": 10}})
+    p = preview(job, {"duration_seconds": {"min": 4, "max": 10}, "audio_output": "none"})
     assert p["blocked"] is True
     assert p["rule"] == "R-DUR-03"
 

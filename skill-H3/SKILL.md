@@ -30,7 +30,7 @@ python -m core.lib.identity --project project.json
 python -m core.lib.asset_prompt --kind weapon --aspect 16:9 --sex male --character-id SHEN_YAN --file artifact.md --project project.json
 python -m core.lib.asset_prompt --kind scene --aspect 16:9 --file scene.md
 python -m core.lib.asset_prompt --kind hud --aspect 16:9 --owner-id CHAR_A --file hud-system.md
-python -m core.lib.shot_quality --job project.json --job-id JOB001 --prompt compiled.md
+python -m core.lib.shot_quality --job project.json --job-id JOB001 --prompt compiled.md --lock effective-capability.lock.json --stage submit
 python -m core.lib.adapt --job project.json --lock effective-capability.lock.json --job-id JOB001
 ```
 

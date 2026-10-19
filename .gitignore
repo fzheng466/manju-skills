@@ -14,5 +14,12 @@ cases/**/media/
 cases/**/*.mp4
 cases/**/*.png
 cases/**/*.jpg
+cases/**/*.jpeg
+cases/**/*.webp
+cases/**/*.mov
+cases/**/*.wav
+cases/**/*.m4a
+cases/**/*.aac
+cases/**/*.mp3
 cases/**/request.json
 07_qa/gch9-warnings.json

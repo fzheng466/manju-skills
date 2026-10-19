@@ -119,6 +119,15 @@ def _price(channel: dict[str, Any]) -> float | None:
         return None
 
 
+def _flat_size(channel: dict[str, Any]) -> str | None:
+    """image_pricing=flat means every tier costs the same: request the highest tier."""
+    img = channel.get("image_gen") if isinstance(channel.get("image_gen"), dict) else {}
+    tiers = img.get("tiers")
+    if str(img.get("pricing") or "") == "flat" and isinstance(tiers, list) and tiers:
+        return str(tiers[-1])
+    return None
+
+
 def _call_adapter(channel: dict[str, Any], payload: dict[str, Any]) -> dict[str, Any]:
     img = channel.get("image_gen") if isinstance(channel.get("image_gen"), dict) else {}
     adapter = str(img.get("adapter") or "")
@@ -215,6 +224,9 @@ def cmd_next(project: dict[str, Any], *, channel_id: str, budget: float, confirm
         "remaining": budget - spent,
         "channel_id": channel_id,
     }
+    size = _flat_size(ch)
+    if size:
+        preview["size"] = size
     print(json.dumps(preview, ensure_ascii=False, indent=2))
     if not confirm:
         print("dry-run: pass --confirm to call the local adapter once (n=1, no poll)")
@@ -226,6 +238,8 @@ def cmd_next(project: dict[str, Any], *, channel_id: str, budget: float, confirm
         "n": 1,
         "aspect": asset.get("aspect_ratio") or "16:9",
     }
+    if size:
+        payload["size"] = size
     nxt["charged"] = price
     try:
         result = _call_adapter(ch, payload)
@@ -247,6 +261,27 @@ def cmd_next(project: dict[str, Any], *, channel_id: str, budget: float, confirm
         paths = paths[:1]
         anomaly = True
     path = paths[0] if paths else result.get("path")
+    from .shot_quality import check_production_path
+
+    path_errors = check_production_path(
+        {
+            "media_path": str(path) if path else "",
+            "production_root": project.get("production_root"),
+            "test_root": project.get("test_root"),
+        }
+    )
+    if path_errors:
+        nxt["status"] = "path_violation"
+        nxt["path"] = path
+        nxt["path_errors"] = path_errors
+        nxt["channel_id"] = channel_id
+        nxt["charged"] = price
+        nxt["at"] = datetime.now(timezone.utc).isoformat()
+        queue["spent"] = spent + price
+        save_queue(pid, queue)
+        for error in path_errors:
+            print(f"ERROR: {error}", file=sys.stderr)
+        return 4
     nxt["status"] = "awaiting_review"
     nxt["path"] = path
     nxt["anomaly"] = anomaly

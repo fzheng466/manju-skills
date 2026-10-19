@@ -134,7 +134,7 @@
 python -m core.lib.asset_prompt --kind character|prop|weapon --aspect 16:9 --sex male|female --file <prompt.md> --project project.json
 python -m core.lib.asset_prompt --kind scene --aspect 16:9 --file <prompt.md>
 python -m core.lib.asset_prompt --kind hud --aspect 16:9 --owner-id CHAR_A --file hud-system.md
-python -m core.lib.shot_quality --job project.json --job-id <id> --prompt compiled.md
+python -m core.lib.shot_quality --job project.json --job-id <id> --prompt compiled.md --lock effective-capability.lock.json --stage submit
 python -m core.lib.adapt --job project.json --lock effective-capability.lock.json
 python -m core.lib.transpile --project project.json --job-id <id> --profile seedance-2.5 --out sd.md
 ```

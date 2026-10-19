@@ -145,6 +145,10 @@ def validate_prompt_dialogue(prompt_text: str, dialogue: list[dict[str, Any]]) -
             errors.append(
                 f"compiled prompt dialogue[{index}] does not match the frozen utterance text"
             )
+    skill_root = Path(__file__).resolve().parents[1]
+    for candidate in (str(skill_root), str(skill_root.parent)):
+        if candidate not in sys.path:
+            sys.path.insert(0, candidate)
     try:
         from core.lib.shot_quality import check_speaker_order
     except ImportError:
@@ -153,7 +157,7 @@ def validate_prompt_dialogue(prompt_text: str, dialogue: list[dict[str, Any]]) -
     return errors
 
 
-def validate_project(data: dict[str, Any], root: Path) -> list[str]:
+def validate_project(data: dict[str, Any], root: Path, lock: dict[str, Any] | None = None) -> list[str]:
     errors: list[str] = []
     schema_version = data.get("schema_version")
     if schema_version not in {"1.0", "1.1", "1.2"}:
@@ -774,9 +778,21 @@ def validate_project(data: dict[str, Any], root: Path) -> list[str]:
             from _core.lib.identity import check_project as check_identity  # type: ignore
             from _core.lib.shot_quality import check_job  # type: ignore
         errors.extend(check_identity(data, root=root))
+        assets_by_id = {
+            str(a.get("asset_id")): a for a in (data.get("assets") or []) if isinstance(a, dict)
+        }
         for job in jobs:
             if isinstance(job, dict):
-                errors.extend(check_job(job, _prompt_text_for_job(root, job)))
+                errors.extend(
+                    check_job(
+                        job,
+                        _prompt_text_for_job(root, job),
+                        assets_by_id,
+                        lock=lock,
+                        project=data,
+                        stage=stage,
+                    )
+                )
 
     return errors
 
@@ -808,9 +824,10 @@ def main() -> int:
         print("ERROR: project JSON root must be an object", file=sys.stderr)
         return 2
     root = args.project_json.resolve().parent
-    errors = validate_project(data, root)
     lock_path = args.lock or root / "effective-capability.lock.json"
-    if lock_path.is_file():
+    lock_data = json.loads(lock_path.read_text(encoding="utf-8")) if lock_path.is_file() else None
+    errors = validate_project(data, root, lock=lock_data)
+    if lock_data is not None:
         skill_root = Path(__file__).resolve().parents[1]
         sys.path.insert(0, str(skill_root.parent))
         sys.path.insert(0, str(skill_root))
@@ -820,10 +837,9 @@ def main() -> int:
         except ImportError:
             from _core.lib.channel import file_hash  # type: ignore
             from _core.lib.guards_channel import apply_lock_checks_with_warnings  # type: ignore
-        lock = json.loads(lock_path.read_text(encoding="utf-8"))
         lock_errors, lock_warns = apply_lock_checks_with_warnings(
             data,
-            lock,
+            lock_data,
             lambda job: _prompt_text_for_job(root, job),
             project_hash=file_hash(args.project_json),
         )

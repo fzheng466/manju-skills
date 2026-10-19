@@ -10,11 +10,12 @@
 |---|---|---|
 | R-DUR-01 | job 时长 > 生效 max | 在 beat 边界切分。切点：① 台词句末 ② 动作收势 ③ 已有 cut ④ 焦点移交。前段 end_state = 后段 start_state |
 | R-DUR-02 | 单个 beat > max | 退回导演谱，不硬切 beat。台词不在句中切开（除非剧本 `<cutoff>`） |
-| R-DUR-03 | 一句台词按语速放不进 max | 阻断。选项：换更长渠道 / 画外音+后期 / 授权拆句 |
+| R-DUR-03 | 唯一合法切点落在一句台词中间 | 阻断。不得句中切开（除非剧本 `<cutoff>`）；换渠道或授权拆句 |
 | R-DUR-04 | 切分后某段 < min | 先与相邻段合并；合并不了则延长末态停留 ≤1.5s（必须写成可见停留） |
-| R-DUR-05 | 渠道只要整数秒 | 向上取整；切点落在整秒 |
+| R-DUR-05 | 时长不在渠道枚举 | 给 `duration_options`：`pad_action`（≤25% 且补可见动作）、`trim`（≤2s）、`split_enum`（枚举值组合）。不静默改时长；回写 `duration_snapped_from` 后必须 `duration_user_ack`（`SHOT-DUR-ACK`），提示词时间码未更新报 `SHOT-DUR-TC` |
 | R-DUR-06 | max 远大于原时长 | 只建议合并，不自动合并 |
 | R-DUR-07 | 延长能力 verified | 可用「首段+延长」代替拆段；延长段首 1 秒只写微动作（FM-03） |
+| R-DUR-08 | 渠道只要整数秒 | 向上取整；切点落在整秒 |
 
 ## 画幅 R-AR
 
@@ -43,7 +44,12 @@ P1 帧锚（仅帧锚模式）→ P2 本段主说话/动作角色板 → P3 其�
 
 ## 音频 R-AUD
 
-`audio_output=none`：正文删音景/配乐；台词只写可见口型；生成 `audio_post_plan.json` 给后期 TTS。不支持 2.5 声音标记时一律自然语言。
+按 lock 的 `audio_output` 选路，渠道值优先于模型基线；`dialogue_and_sfx` / `dialogue` 是 `native` 的别名：
+
+- `native`：台词走身份层 `voice_profile_id` + 表演层，**禁止后期配音**（`SHOT-AUD-POST`）。`reference_audio` 为 `allowed` 且用户选择时才绑音频槽。
+- `none`：正文删音景/配乐；台词只写可见口型；生成 `audio_post_plan.json` 给后期 TTS（`R-AUD-01`）。
+- `sfx_only`：保留渠道音效，对白进后期（`R-AUD-02`）。
+- `unknown` / 缺字段 / 未知值：**阻断**（`R-AUD-00`），不得自动降级成后期配音。
 
 ## 其他
 

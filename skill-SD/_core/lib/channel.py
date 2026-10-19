@@ -124,6 +124,21 @@ def _strictest_int(a: Any, b: Any, how: str = "min") -> int | None:
     return min(nums) if how == "min" else max(nums)
 
 
+AUDIO_ALIASES = {
+    # Documented model vocabularies are aliases, not separate capabilities.
+    "dialogue_and_sfx": "native",
+    "dialogue": "native",
+    "sfx_only": "sfx_only",
+}
+
+
+def normalize_audio_output(value: Any) -> str:
+    """Canonical audio token: native | none | sfx_only | unknown."""
+    if value in (None, "", "unknown"):
+        return "unknown"
+    return AUDIO_ALIASES.get(str(value), str(value))
+
+
 def _as_set(value: Any) -> set[str]:
     if isinstance(value, dict) and "value" in value:
         value = value["value"]
@@ -186,10 +201,8 @@ def merge_effective(
 
     # Channel answers beat the baseline. Baseline must not invent "none".
     audio_raw = (caps.get("audio_output") or {}).get("value")
-    if audio_raw in (None, "", "unknown"):
-        audio = "unknown"
-    else:
-        audio = audio_raw
+    # Channel answers beat the baseline; unknown never degrades to "none".
+    audio = normalize_audio_output(audio_raw)
     b_modes = set(baseline.get("modes") or [])
     c_modes = _as_set(caps.get("modes")) or b_modes
     modes = sorted(b_modes & c_modes) if c_modes else sorted(b_modes)

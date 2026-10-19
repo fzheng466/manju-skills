@@ -4,9 +4,12 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
 import re
 from pathlib import Path
 from typing import Any
+
+from .channel import normalize_audio_output
 
 VAGUE_PERF = re.compile(r"眼神复杂|气场强|表情微妙|很有戏|情绪饱满|眼神深邃|杀气很重|表情很冷|气场全开")
 MOVE_TOKEN = r"(推轨|拉轨|推近|拉远|横移|横摇|竖摇|摇摄|升降|环绕|变焦)"
@@ -37,10 +40,18 @@ def _number(value: Any) -> bool:
     return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
 
 
-def check_prompt(text: str, job: dict[str, Any] | None = None) -> list[str]:
+def check_prompt(
+    text: str,
+    job: dict[str, Any] | None = None,
+    assets_by_id: dict[str, dict[str, Any]] | None = None,
+    lock: dict[str, Any] | None = None,
+    project: dict[str, Any] | None = None,
+) -> list[str]:
     errors: list[str] = []
     body = text or ""
-    job = job or {}
+    raw_job = job or {}
+    ctx = _ctx(raw_job, lock, project)
+    job = _with_ctx(raw_job, ctx)
     if VAGUE_PERF.search(body):
         errors.append("SHOT-PERF: vague acting words (眼神复杂/气场强/表情微妙); write brow/lid/mouth/breath sequence")
     aspect = job.get("aspect_ratio")
@@ -74,15 +85,15 @@ def check_prompt(text: str, job: dict[str, Any] | None = None) -> list[str]:
     errors.extend(check_four_view_singleton(body))
     errors.extend(check_hud_rear(body))
     errors.extend(check_boilerplate_distance_conflict(body))
-    errors.extend(check_audio_policy(body, job))
-    errors.extend(check_duration_enum(job))
-    errors.extend(check_ref_roles(job))
-    errors.extend(check_fx_visibility(body, job))
+    errors.extend(check_audio_policy(body, job, ctx))
+    errors.extend(check_duration_enum(job, ctx, body))
+    errors.extend(check_ref_roles(job, assets_by_id, ctx, project))
+    errors.extend(check_fx_visibility(body, job, assets_by_id))
     errors.extend(check_fx_body_and_dialogue(body, job))
     errors.extend(check_fx_tier(body, job))
-    errors.extend(check_fx_lookdev(job))
-    errors.extend(check_prop_state(body, job))
-    errors.extend(check_production_path(job))
+    errors.extend(check_fx_lookdev(job, project, assets_by_id))
+    errors.extend(check_prop_state(body, job, project, assets_by_id))
+    errors.extend(check_production_path(job, ctx))
     if aspect == "9:16":
         errors.extend(check_portrait_near(body, job))
     return errors
@@ -95,6 +106,45 @@ _NO_CAST = re.compile(r"人物不入画|不出现人物")
 _LR_HEX = re.compile(r"左右(两侧)?各(竖排)?\s*[3三]枚")
 
 
+def _ctx(job: dict[str, Any], lock: dict[str, Any] | None, project: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Read-only view: lock track wins over job fields; project supplies roots/policy."""
+    eff: dict[str, Any] = {}
+    if lock:
+        from .guards_channel import resolve_effective
+
+        eff = resolve_effective(lock, job) or {}
+    project = project or {}
+    if lock:
+        audio = eff.get("audio_output")
+        if audio in (None, ""):
+            audio = job.get("audio_output")
+    else:
+        audio = job.get("audio_output") or (job.get("effective") or {}).get("audio_output")
+    return {
+        "audio_output": normalize_audio_output(audio),
+        "duration_allowed": (eff.get("duration_seconds") or {}).get("allowed") or job.get("duration_allowed"),
+        "realperson": bool(project.get("realperson") or job.get("realperson") or job.get("live_action")),
+        "realperson_policy": eff.get("realperson_policy") or {},
+        "reference_transport": eff.get("reference_transport"),
+        "production_root": project.get("production_root") or job.get("production_root"),
+        "test_root": os.path.expandvars(str(project.get("test_root") or job.get("test_root") or "")),
+        "lock_present": bool(lock),
+        "effective": eff,
+    }
+
+
+def _with_ctx(job: dict[str, Any], ctx: dict[str, Any]) -> dict[str, Any]:
+    """Overlay derived capability values so legacy checks agree with lock-aware ones."""
+    merged = dict(job)
+    for key in ("audio_output", "duration_allowed", "production_root", "test_root"):
+        value = ctx.get(key)
+        if value not in (None, "", []):
+            merged[key] = value
+    if ctx.get("realperson"):
+        merged["realperson"] = True
+    return merged
+
+
 def _confirmed_ui_cap(job: dict[str, Any] | None, aspect: str | None) -> float:
     job = job or {}
     confirmed = job.get("fx_tier_confirmed")
@@ -104,14 +154,14 @@ def _confirmed_ui_cap(job: dict[str, Any] | None, aspect: str | None) -> float:
     portrait = aspect == "9:16"
     defaults = {
         "off": 0,
-        "presence": 20 if portrait else 25,
+        "presence": 10,
         "collapsed": 12,
         "readable": 45 if portrait else 50,
         "fullscreen": 90,
     }
     if state in defaults:
         return float(defaults[state])
-    return 20.0 if portrait else 25.0
+    return 10.0
 
 
 def check_fx_ui(text: str, aspect: str | None, job: dict[str, Any] | None = None) -> list[str]:
@@ -366,9 +416,8 @@ def check_speaker_order(text: str) -> list[str]:
 
 POST_DUB = re.compile(r"后期配音|后期配|配音替换|post[- ]?dub", re.I)
 TURN = re.compile(r"转身|侧身|回头|半转|过肩|背对|三分之二背")
-FX_MOVE = re.compile(r"(移到|退到|缩到).{0,8}(余光|画面边缘|身后|侧后)|收起|消失|收束")
+FX_MOVE = re.compile(r"(移到|退到|缩到|收到|收至).{0,8}(余光|画面边缘|身后|侧后)|收起|消失|收束")
 FX_BETWEEN = re.compile(r"(面板|光幕|界面|法阵|护盾).{0,12}(两人之间|中间|挡在)")
-COVERED_BOWL = re.compile(r"倒扣.{0,6}(碗|空碗)|空碗")
 FORBIDDEN_SCENE_ROLES = {"scene_master"}
 FACE_ROLES = {"fx_lookdev", "fx_text_frame"}
 
@@ -401,19 +450,55 @@ def _visible_cast(job: dict[str, Any]) -> list[str]:
     return [str(x) for x in (ledger.get("visible_cast") or job.get("visible_cast") or [])]
 
 
-def _bound_fx(job: dict[str, Any]) -> list[dict[str, Any]]:
+def _bound_fx(job: dict[str, Any], assets_by_id: dict[str, dict[str, Any]] | None = None) -> list[dict[str, Any]]:
+    """Merge each binding with its asset record; asset-level visibility/owner must count."""
+    assets_by_id = assets_by_id or {}
     out = []
     for b in job.get("asset_bindings") or []:
         if not isinstance(b, dict):
             continue
-        if b.get("kind") == "fx" or b.get("asset_role") == "fx" or b.get("fx_class") or b.get("visibility"):
-            out.append(b)
+        asset = assets_by_id.get(str(b.get("asset_id")), {})
+        merged = {**asset, **{k: v for k, v in b.items() if v is not None}}
+        if (merged.get("kind") == "fx" or merged.get("asset_role") == "fx"
+                or merged.get("fx_class") or merged.get("visibility")
+                or str(merged.get("ref_role") or "").startswith("fx_")):
+            out.append(merged)
     return out
 
 
-def check_audio_policy(text: str, job: dict[str, Any]) -> list[str]:
+def _utterances(job: dict[str, Any]) -> list[dict[str, Any]]:
+    out: list[dict[str, Any]] = []
+    for shot in job.get("shots") or []:
+        if not isinstance(shot, dict):
+            continue
+        for line in shot.get("dialogue") or []:
+            if isinstance(line, dict):
+                out.append(line)
+    for u in job.get("utterances") or []:
+        if isinstance(u, dict):
+            out.append(u)
+    return out
+
+
+def _beats(job: dict[str, Any]) -> list[dict[str, Any]]:
+    out: list[dict[str, Any]] = []
+    for shot in job.get("shots") or []:
+        if not isinstance(shot, dict):
+            continue
+        for beat in shot.get("beats") or []:
+            if isinstance(beat, dict):
+                out.append(beat)
+    return out
+
+
+def _addressees(job: dict[str, Any]) -> set[str]:
+    return {str(u.get("addressee_id")) for u in _utterances(job) if u.get("addressee_id")}
+
+
+def check_audio_policy(text: str, job: dict[str, Any], ctx: dict[str, Any] | None = None) -> list[str]:
     errors: list[str] = []
-    audio = job.get("audio_output") or (job.get("effective") or {}).get("audio_output")
+    raw = (ctx or {}).get("audio_output") or job.get("audio_output") or (job.get("effective") or {}).get("audio_output")
+    audio = normalize_audio_output(raw) if raw is not None else "unknown"
     if audio == "native" and POST_DUB.search(text or ""):
         errors.append("SHOT-AUD-POST: channel has native audio; do not hand dialogue to post-dub")
     if audio == "native" and _job_has_dialogue(job):
@@ -429,54 +514,121 @@ def check_audio_policy(text: str, job: dict[str, Any]) -> list[str]:
     return errors
 
 
-def check_duration_enum(job: dict[str, Any]) -> list[str]:
-    allowed = job.get("duration_allowed") or ((job.get("effective") or {}).get("duration_seconds") or {}).get("allowed")
+def check_duration_enum(job: dict[str, Any], ctx: dict[str, Any] | None = None, prompt_text: str = "") -> list[str]:
+    from .guards_channel import _max_time_in_text
+
+    errors: list[str] = []
+    allowed = (ctx or {}).get("duration_allowed") or job.get("duration_allowed") or (
+        (job.get("effective") or {}).get("duration_seconds") or {}
+    ).get("allowed")
     dur = job.get("duration_seconds")
     if allowed and isinstance(dur, (int, float)) and int(round(dur)) not in {int(x) for x in allowed}:
-        return [f"SHOT-DUR-ENUM: duration {dur} not in channel enum {list(allowed)}; run adapt snap"]
-    return []
+        errors.append(f"SHOT-DUR-ENUM: duration {dur} not in channel enum {list(allowed)}; run adapt snap")
+    if job.get("duration_snapped_from") and not job.get("duration_user_ack"):
+        errors.append("SHOT-DUR-ACK: snapped duration not acknowledged by user")
+    if job.get("duration_snapped_from") and isinstance(dur, (int, float)) and prompt_text:
+        last = _max_time_in_text(prompt_text)
+        if last and last < float(dur) - 0.5:
+            errors.append(f"SHOT-DUR-TC: prompt timecodes end at {last:g}s but job duration is {dur:g}s")
+    return errors
 
 
-def check_ref_roles(job: dict[str, Any]) -> list[str]:
+REF_ROLES = {
+    "identity_board", "scene_master", "scene_view", "prop_board", "prop_state",
+    "fx_shell", "fx_lookdev", "fx_text_frame", "tail_frame",
+}
+FORBIDDEN_SCENE_ROLES = {"scene_master"}
+FACE_ROLES = {"fx_lookdev", "fx_text_frame"}
+
+
+def _prev_job_had_fx(job: dict[str, Any], project: dict[str, Any] | None) -> bool:
+    if "previous_job_had_fx" in job:
+        return bool(job.get("previous_job_had_fx"))
+    ledger = job.get("continuity_ledger") if isinstance(job.get("continuity_ledger"), dict) else {}
+    prev_id = str(ledger.get("previous_job_id") or job.get("previous_job_id") or "")
+    if project and prev_id and prev_id not in {"none", ""}:
+        for candidate in project.get("jobs") or []:
+            if isinstance(candidate, dict) and str(candidate.get("id")) == prev_id:
+                return bool(
+                    _bound_fx(candidate)
+                    or candidate.get("fx_state")
+                    or candidate.get("fx_state_out")
+                )
+    state_in = str(job.get("fx_state_in") or "")
+    return bool(state_in) and state_in not in {"off", "none"}
+
+
+def check_ref_roles(
+    job: dict[str, Any],
+    assets_by_id: dict[str, dict[str, Any]] | None = None,
+    ctx: dict[str, Any] | None = None,
+    project: dict[str, Any] | None = None,
+) -> list[str]:
     errors: list[str] = []
-    realperson = bool(job.get("realperson") or job.get("live_action"))
+    ctx = ctx or {}
+    assets_by_id = assets_by_id or {}
+    realperson = bool(ctx.get("realperson") or job.get("realperson") or job.get("live_action"))
+    policy = ctx.get("realperson_policy") or {}
+    transport = str(ctx.get("reference_transport") or "")
     for b in job.get("asset_bindings") or []:
         if not isinstance(b, dict):
             continue
         role = b.get("ref_role")
         method = str(b.get("binding_method") or "")
+        asset = assets_by_id.get(str(b.get("asset_id")), {})
         if not role:
             errors.append("SHOT-REF-ROLE: binding without ref_role")
             continue
-        if role in FORBIDDEN_SCENE_ROLES and method in {"attached_reference", "reference", ""}:
+        if role not in REF_ROLES:
+            errors.append(f"SHOT-REF-ROLE: unknown ref_role {role!r}")
+            continue
+        if role in FORBIDDEN_SCENE_ROLES and method in {"attached_reference", "reference"}:
             errors.append("SHOT-REF-GRID: 2×2 scene master attached; bind a scene_view crop")
-        if realperson and role in FACE_ROLES and b.get("contains_face"):
-            errors.append("SHOT-REF-FACE: face-bearing composite on a real-person channel")
+        face = b.get("contains_face", asset.get("contains_face"))
+        if realperson and role in FACE_ROLES and face is not False and policy.get("face_composite", "reject") != "ok":
+            errors.append("SHOT-REF-FACE: face composite on real-person channel (contains_face unknown counts as true)")
         if role == "tail_frame":
-            carried = b.get("fx_state")
+            carried = b.get("fx_state") or asset.get("fx_state")
             want = job.get("fx_state_in") or job.get("fx_state")
-            if carried and want and carried != want:
+            if _prev_job_had_fx(job, project) and not carried:
+                errors.append("SHOT-REF-INHERIT: tail_frame must declare fx_state when the previous job had FX")
+            elif carried and want and carried != want:
                 errors.append("SHOT-REF-INHERIT: tail frame carries FX state this job must drop")
+        if transport == "uploaded" and str(b.get("source") or "").startswith("http"):
+            errors.append("SHOT-REF-UPLOAD: channel requires uploaded assets, got bare URL")
     return errors
 
 
-def check_fx_visibility(text: str, job: dict[str, Any]) -> list[str]:
+def check_fx_visibility(
+    text: str,
+    job: dict[str, Any],
+    assets_by_id: dict[str, dict[str, Any]] | None = None,
+) -> list[str]:
     errors: list[str] = []
-    owner_fx = [a for a in _bound_fx(job) if a.get("visibility") == "owner_only"]
+    owner_fx = [a for a in _bound_fx(job, assets_by_id) if a.get("visibility") == "owner_only"]
     if not owner_fx:
         return errors
     owners = {str(a.get("owner_id")) for a in owner_fx if a.get("owner_id")}
     others = [c for c in _visible_cast(job) if c not in owners]
     speakers = _dialogue_speakers(job)
-    talking_to_other = bool(others) and bool(speakers & set(others))
+    addressees = _addressees(job)
+    talking_to_other = bool(others) and bool((speakers | addressees) & set(others))
     state = str(job.get("fx_state") or job.get("fx_state_in") or "")
     if talking_to_other and state in {"readable", "fullscreen"}:
         errors.append(
-            "SHOT-FX-VIS: owner_only FX stays readable while talking to a non-owner; collapse or drop"
+            "SHOT-FX-VIS: owner_only FX stays readable while a non-owner is addressed or speaking; collapse or drop"
         )
-    body = text or ""
-    if others and re.search(r"(母亲|她|他).{0,8}(看向|盯着|伸手).{0,6}(面板|光幕|界面)", body):
-        errors.append("SHOT-FX-VIS: non-owner reacts to owner_only FX")
+    if others and _job_has_dialogue(job) and not addressees and speakers and speakers <= owners:
+        errors.append(
+            "SHOT-FX-ADDR: owner speaks with a non-owner on screen; set utterance.addressee_id"
+        )
+    fx_ids = {str(a.get("asset_id")) for a in owner_fx if a.get("asset_id")}
+    for beat in _beats(job):
+        actor = str(beat.get("actor_id") or "")
+        target = str(beat.get("look_target") or "")
+        if actor in others and target in fx_ids:
+            errors.append("SHOT-FX-VIS: non-owner reacts to owner_only FX")
+            break
     return errors
 
 
@@ -504,35 +656,143 @@ def check_fx_tier(text: str, job: dict[str, Any]) -> list[str]:
     return []
 
 
-def check_fx_lookdev(job: dict[str, Any]) -> list[str]:
-    if not job.get("fx_first_appearance"):
-        return []
+def _first_fx_jobs(project: dict[str, Any], assets_by_id: dict[str, dict[str, Any]] | None = None) -> set[str]:
+    """Derive first FX look-dev from job order instead of a hand-maintained flag."""
+    first: set[str] = set()
+    seen_ids: set[str] = set()
+    seen_states: set[tuple[str, str]] = set()
+    jobs = [j for j in project.get("jobs") or [] if isinstance(j, dict)]
+    for j in sorted(jobs, key=lambda item: (item.get("episode_start_seconds", 0), str(item.get("id")))):
+        jid = str(j.get("id") or "")
+        state = str(j.get("fx_state") or j.get("fx_state_in") or "")
+        for fx in _bound_fx(j, assets_by_id):
+            aid = str(fx.get("asset_id") or "")
+            if aid and aid not in seen_ids:
+                first.add(jid)
+            seen_ids.add(aid)
+            if state in {"readable", "fullscreen"} and (aid, state) not in seen_states:
+                first.add(jid)
+            seen_states.add((aid, state))
+            if fx.get("visibility") == "owner_only":
+                owners = {str(fx.get("owner_id"))} if fx.get("owner_id") else set()
+                if set(_visible_cast(j)) - owners:
+                    first.add(jid)
+    return first
+
+
+def check_fx_lookdev(
+    job: dict[str, Any],
+    project: dict[str, Any] | None = None,
+    assets_by_id: dict[str, dict[str, Any]] | None = None,
+) -> list[str]:
     if job.get("fx_tier_confirmed"):
+        return []
+    is_first = bool(job.get("fx_first_appearance"))
+    if project:
+        is_first = is_first or str(job.get("id")) in _first_fx_jobs(project, assets_by_id)
+    if not is_first:
         return []
     return ["SHOT-FX-LOOKDEV: first FX appearance without fx_tier_confirmed"]
 
 
-def check_prop_state(text: str, job: dict[str, Any]) -> list[str]:
+STATE_LEXICON: dict[str, tuple[str, ...]] = {
+    "open": ("开着", "敞开", "打开"),
+    "closed": ("关着", "关上", "紧闭"),
+    "covered": ("盖着", "罩着"),
+    "uncovered": ("揭开", "掀开", "空碗", "倒扣"),
+    "lit_steady": ("灯光稳定", "常亮"),
+    "flicker": ("闪烁", "忽明忽暗", "乱闪"),
+    "intact": ("完好",),
+    "broken": ("碎", "断裂", "破损"),
+}
+OPPOSITE = {
+    "open": "closed", "closed": "open",
+    "covered": "uncovered", "uncovered": "covered",
+    "lit_steady": "flicker", "flicker": "lit_steady",
+    "intact": "broken", "broken": "intact",
+}
+_GENERIC_PROP_NAMES = {"door": "门", "window": "窗", "lamp": "灯", "bowl": "碗", "cover": "罩"}
+
+
+def _prop_mentioned(text: str, prop_id: str, assets_by_id: dict[str, dict[str, Any]] | None) -> bool:
+    if not prop_id or prop_id == "*":
+        return True
+    asset = (assets_by_id or {}).get(prop_id, {})
+    names = [prop_id, asset.get("name"), asset.get("label"), *(asset.get("aliases") or [])]
+    for part in str(prop_id).split("_"):
+        names.append(part)
+        if part.lower() in _GENERIC_PROP_NAMES:
+            names.append(_GENERIC_PROP_NAMES[part.lower()])
+    return any(str(n) and str(n) in text for n in names)
+
+
+def check_prop_state(
+    text: str,
+    job: dict[str, Any],
+    project: dict[str, Any] | None = None,
+    assets_by_id: dict[str, dict[str, Any]] | None = None,
+) -> list[str]:
+    body = text or ""
     ledger = job.get("continuity_ledger") if isinstance(job.get("continuity_ledger"), dict) else {}
-    env = str(ledger.get("environment_state") or ledger.get("prop_state") or job.get("prop_state") or "")
-    if "covered" in env and COVERED_BOWL.search(text or ""):
-        return ["SHOT-PROP-STATE: prompt state conflicts with continuity ledger"]
-    return []
+    states = ledger.get("prop_state")
+    if states is None:
+        states = job.get("prop_state")
+    if states is None:
+        states = ledger.get("environment_state")
+    lexicon = dict(STATE_LEXICON)
+    extra = (project or {}).get("state_lexicon") or job.get("state_lexicon")
+    if isinstance(extra, dict):
+        lexicon.update({str(k): tuple(v) if isinstance(v, (list, tuple)) else (str(v),) for k, v in extra.items()})
+    errors: list[str] = []
+
+    def check_one(prop_id: str, state: str) -> None:
+        opposite = OPPOSITE.get(state)
+        if not opposite:
+            return
+        words = lexicon.get(opposite, ())
+        if not any(w in body for w in words):
+            return
+        if not _prop_mentioned(body, prop_id, assets_by_id):
+            return
+        errors.append(
+            f"SHOT-PROP-STATE: {prop_id} is {state} in the ledger but the prompt says {opposite}"
+        )
+
+    if isinstance(states, dict):
+        for pid, state in states.items():
+            check_one(str(pid), str(state))
+    elif isinstance(states, str) and states.strip():
+        for state in OPPOSITE:
+            if state in states:
+                check_one("*", state)
+    return errors
 
 
-def check_production_path(job: dict[str, Any]) -> list[str]:
+def _norm_path(raw: Any) -> str:
+    value = os.path.expanduser(os.path.expandvars(str(raw or "")))
+    try:
+        return Path(value).resolve().as_posix().lower()
+    except OSError:
+        return Path(value).as_posix().lower()
+
+
+def check_production_path(job: dict[str, Any], ctx: dict[str, Any] | None = None) -> list[str]:
     media = str(job.get("media_path") or "")
     if not media:
         return []
-    prod = str(job.get("production_root") or "")
-    test = str(job.get("test_root") or "")
-    home = str(Path.home())
-    if test and test.replace("\\", "/") in media.replace("\\", "/"):
-        return ["PATH-PROD: media path is under test_root"]
-    if home.replace("\\", "/") in media.replace("\\", "/") and (
-        not prod or prod.replace("\\", "/") not in media.replace("\\", "/")
-    ):
-        return ["PATH-PROD: media path is under the user home and outside production_root"]
+    ctx = ctx or {}
+    prod = str(ctx.get("production_root") or job.get("production_root") or "")
+    test = str(ctx.get("test_root") or job.get("test_root") or "")
+    if not prod:
+        return ["PATH-PROD: production_root not set; refuse to write generated media"]
+    m = _norm_path(media)
+    if test:
+        t = _norm_path(test)
+        if m == t or m.startswith(t + "/"):
+            return ["PATH-PROD: media path is under test_root"]
+    pr = _norm_path(prod)
+    if not (m == pr or m.startswith(pr + "/")):
+        return ["PATH-PROD: media outside production_root"]
     return []
 
 
@@ -540,9 +800,15 @@ def check_job(
     job: dict[str, Any],
     prompt_text: str = "",
     assets_by_id: dict[str, dict[str, Any]] | None = None,
+    lock: dict[str, Any] | None = None,
+    project: dict[str, Any] | None = None,
+    stage: str = "draft",
 ) -> list[str]:
     errors: list[str] = []
-    errors.extend(check_prompt(prompt_text, job))
+    ctx = _ctx(job, lock, project)
+    if stage == "submit" and not ctx["lock_present"]:
+        errors.append("SHOT-LOCK: submit-stage gates require --lock")
+    errors.extend(check_prompt(prompt_text, job, assets_by_id, lock, project))
     errors.extend(check_fx_bindings(job, prompt_text, assets_by_id))
     scales: list[str] = []
     REGION = ("眉", "眼", "睑", "嘴", "唇", "颌", "呼吸", "肩", "喉")
@@ -612,10 +878,14 @@ def main() -> int:
     p.add_argument("--job", type=Path, required=True, help="job JSON or project.json")
     p.add_argument("--job-id", default=None)
     p.add_argument("--prompt", type=Path, default=None)
+    p.add_argument("--lock", type=Path, default=None, help="effective-capability.lock.json")
+    p.add_argument("--stage", choices=["draft", "submit"], default=None)
     args = p.parse_args()
     raw = json.loads(args.job.read_text(encoding="utf-8"))
     jobs = [raw]
+    project = None
     if isinstance(raw, dict) and "jobs" in raw:
+        project = raw
         jobs = [j for j in (raw.get("jobs") or []) if isinstance(j, dict)]
         if args.job_id:
             jobs = [j for j in jobs if j.get("id") == args.job_id]
@@ -625,9 +895,20 @@ def main() -> int:
         assets_by_id = {
             str(a.get("asset_id")): a for a in (raw.get("assets") or []) if isinstance(a, dict)
         }
+    lock = json.loads(args.lock.read_text(encoding="utf-8")) if args.lock else None
+    stage = args.stage or (str(project.get("stage")) if isinstance(project, dict) else "draft") or "draft"
     errors: list[str] = []
     for job in jobs:
-        errors.extend(check_job(job, prompt, assets_by_id))
+        if not isinstance(job, dict):
+            continue
+        text = prompt
+        if not text and job.get("compiled_prompt_path"):
+            candidate = Path(str(job["compiled_prompt_path"]))
+            if not candidate.is_absolute():
+                candidate = args.job.resolve().parent / candidate
+            if candidate.is_file():
+                text = candidate.read_text(encoding="utf-8")
+        errors.extend(check_job(job, text, assets_by_id, lock=lock, project=project, stage=stage))
     if errors:
         for e in errors:
             print(f"FAIL: {e}")

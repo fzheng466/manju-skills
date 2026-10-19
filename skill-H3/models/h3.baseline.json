@@ -7,7 +7,8 @@
   "modes": ["T2VA", "I2VA", "L2VA", "FL2VA", "Ref2VA"],
   "reference_inputs": { "image": 9, "video": 3, "audio": 3, "total": 12 },
   "frame_anchors": { "first": true, "last": true, "first_last": true },
-  "audio_output": "dialogue_and_sfx",
+  "audio_output": "unknown",
+  "audio_output_documented": "dialogue_and_sfx",
   "prompt_max_chars": 7000,
   "notes": "Channel caps may be stricter. Effective = baseline ∩ channel ∩ project."
 }
